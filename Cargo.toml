@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "rorm",
+    "rorm-macro",
+    "examples/sqlite/getting_started"
+]
