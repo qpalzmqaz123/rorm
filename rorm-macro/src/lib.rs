@@ -1,8 +1,8 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
+use proc_macro::TokenStream;
+use proc_macro_error::proc_macro_error;
+
+#[proc_macro_derive(Entity, attributes(rorm))]
+#[proc_macro_error]
+pub fn derive_entity(_item: TokenStream) -> TokenStream {
+    TokenStream::new()
 }

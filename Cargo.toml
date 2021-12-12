@@ -1,6 +1,9 @@
 [workspace]
 members = [
     "rorm",
+    "rorm-error",
     "rorm-macro",
-    "examples/sqlite/getting_started"
+    "rorm-pool",
+    "examples/sqlite/getting_started",
+    "examples/pool/sqlite",
 ]
