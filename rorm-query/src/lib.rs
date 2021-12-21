@@ -2,10 +2,13 @@ mod insert;
 mod select;
 #[macro_use]
 mod where_cond;
+mod value;
 
 use insert::InsertBuilder;
 use select::SelectBuilder;
+use value::Value;
 
+pub use value::sql_str;
 pub use where_cond::Where;
 
 #[derive(Debug)]
