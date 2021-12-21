@@ -1,7 +1,9 @@
+mod insert;
 mod select;
 #[macro_use]
 mod where_cond;
 
+use insert::InsertBuilder;
 use select::SelectBuilder;
 
 pub use where_cond::Where;
@@ -14,7 +16,9 @@ impl QueryBuilder {
         SelectBuilder::new(table)
     }
 
-    pub fn insert() {}
+    pub fn insert(table: &str) -> InsertBuilder {
+        InsertBuilder::new(table)
+    }
 
     pub fn update() {}
 
