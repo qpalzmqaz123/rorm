@@ -4,9 +4,8 @@ mod select;
 mod where_cond;
 mod value;
 
-use insert::InsertBuilder;
-use select::SelectBuilder;
-
+pub use insert::InsertBuilder;
+pub use select::SelectBuilder;
 pub use value::{sql_str, Value};
 pub use where_cond::Where;
 

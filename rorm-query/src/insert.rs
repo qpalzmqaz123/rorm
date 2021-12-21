@@ -34,7 +34,7 @@ impl InsertBuilder {
     ///
     /// assert_eq!(&sql, "INSERT INTO ta (a, b, c) VALUES (1, 2, 'abc')");
     /// ```
-    pub fn column(mut self, col: &str) -> Self {
+    pub fn column(&mut self, col: &str) -> &mut Self {
         self.columns.push(col.into());
         self
     }
@@ -57,7 +57,7 @@ impl InsertBuilder {
     ///
     /// assert_eq!(&sql, "INSERT INTO ta (a, b, c) VALUES (1, 2, 'abc'), (10, 20, 'asd')");
     /// ```
-    pub fn values<T>(mut self, values: T) -> Self
+    pub fn values<T>(&mut self, values: T) -> &mut Self
     where
         T: IntoIterator<Item = Value>,
     {
@@ -71,7 +71,7 @@ impl InsertBuilder {
     }
 
     /// Build sql
-    pub fn build(self) -> Result<String> {
+    pub fn build(&self) -> Result<String> {
         // Validate builder
         self.validate()?;
 
@@ -87,7 +87,7 @@ impl InsertBuilder {
         parts.push("VALUES".into());
         parts.push(
             self.values_list
-                .into_iter()
+                .iter()
                 .map(|values| format!("({})", values.join(", ")))
                 .collect::<Vec<String>>()
                 .join(", "),

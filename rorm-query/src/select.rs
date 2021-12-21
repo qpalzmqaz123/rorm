@@ -32,7 +32,7 @@ impl SelectBuilder {
     ///
     /// assert_eq!(&a, "SELECT a, b FROM ta");
     /// ```
-    pub fn column(mut self, col: &str) -> Self {
+    pub fn column(&mut self, col: &str) -> &mut Self {
         self.columns.push(col.into());
         self
     }
@@ -52,13 +52,13 @@ impl SelectBuilder {
     ///
     /// assert_eq!(&sql, "SELECT a FROM ta WHERE ((a > 1) AND (b < 5))");
     /// ```
-    pub fn where_cond(mut self, cond: Where) -> Self {
+    pub fn where_cond(&mut self, cond: Where) -> &mut Self {
         self.where_cond = Some(cond);
         self
     }
 
     /// Build sql
-    pub fn build(self) -> Result<String> {
+    pub fn build(&self) -> Result<String> {
         // Validate builder
         self.validate()?;
 
@@ -72,7 +72,7 @@ impl SelectBuilder {
 
         // Build table
         parts.push("FROM".into());
-        parts.push(self.table);
+        parts.push(self.table.clone());
 
         // Build where
         if let Some(whe) = &self.where_cond {
