@@ -9,8 +9,8 @@ use rorm_error::Result;
 
 #[async_trait::async_trait]
 pub trait Driver {
-    async fn execute(&self, sql: &str, params: Vec<Value>) -> Result<()>;
-    async fn execute_many(&self, sql: &str, params: Vec<Vec<Value>>) -> Result<()>;
+    async fn execute(&self, sql: &str, params: Vec<Value>) -> Result<u64>;
+    async fn execute_many(&self, sql: &str, params: Vec<Vec<Value>>) -> Result<Vec<u64>>;
     async fn query_map<F, T>(&self, sql: &str, params: Vec<Value>, map_fn: F) -> Result<Vec<T>>
     where
         T: Send + 'static,

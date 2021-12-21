@@ -55,10 +55,10 @@ impl SqlitePoolProxy {
 
 #[async_trait::async_trait]
 impl Driver for SqlitePoolProxy {
-    async fn execute(&self, sql: &str, params: Vec<Value>) -> Result<()> {
+    async fn execute(&self, sql: &str, params: Vec<Value>) -> Result<u64> {
         let sql_string = sql.to_string();
         let pool = self.pool.clone();
-        let _res = spawn_blocking(move || {
+        let id = spawn_blocking(move || {
             log::trace!("Get connection from pool");
             let conn = pool
                 .get()
@@ -70,18 +70,18 @@ impl Driver for SqlitePoolProxy {
             conn.execute(&sql_string, &sqlite_param[..])
                 .map_err(|e| rorm_error::database!("Execute error: {}", e))?;
 
-            Result::<()>::Ok(())
+            Result::Ok(conn.last_insert_rowid() as u64)
         })
         .await
         .map_err(|e| rorm_error::runtime!("Tokio join error: {}", e))??;
 
-        Ok(())
+        Ok(id)
     }
 
-    async fn execute_many(&self, sql: &str, params: Vec<Vec<Value>>) -> Result<()> {
+    async fn execute_many(&self, sql: &str, params: Vec<Vec<Value>>) -> Result<Vec<u64>> {
         let sql_string = sql.to_string();
         let pool = self.pool.clone();
-        let _res = spawn_blocking(move || {
+        let ids = spawn_blocking(move || {
             log::trace!("Get connection from pool");
             let mut conn = pool
                 .get()
@@ -97,6 +97,7 @@ impl Driver for SqlitePoolProxy {
                 rorm_error::database!("Prepare error: {}, sql: `{}`", e, sql_string)
             })?;
 
+            let mut ids = Vec::<u64>::new();
             for param in params {
                 log::trace!("Execute {:?}", param);
 
@@ -104,6 +105,9 @@ impl Driver for SqlitePoolProxy {
                     param.iter().map(|v| v as &dyn rusqlite::ToSql).collect();
                 stmt.execute(&sqlite_param[..])
                     .map_err(|e| rorm_error::database!("Execute error: {}", e))?;
+
+                // Insert id
+                ids.push(tx.last_insert_rowid() as u64);
             }
 
             log::trace!("Commit transaction");
@@ -111,12 +115,12 @@ impl Driver for SqlitePoolProxy {
             tx.commit()
                 .map_err(|e| rorm_error::database!("Commit error: {}", e))?;
 
-            Result::<()>::Ok(())
+            Result::Ok(ids)
         })
         .await
         .map_err(|e| rorm_error::runtime!("Tokio join error: {}", e))??;
 
-        Ok(())
+        Ok(ids)
     }
 
     async fn query_map<F, T>(&self, sql: &str, params: Vec<Value>, map_fn: F) -> Result<Vec<T>>
