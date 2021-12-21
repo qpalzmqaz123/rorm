@@ -1,6 +1,7 @@
 mod drivers;
 mod value;
 
+#[cfg(feature = "sqlite")]
 pub use drivers::sqlite;
 pub use value::{FromValue, ToValue, Value};
 

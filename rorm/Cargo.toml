@@ -7,7 +7,12 @@ edition = "2021"
 
 [dependencies]
 rorm-macro = { path = "../rorm-macro" }
+rorm-pool = { path = "../rorm-pool" }
+rorm-query = { path = "../rorm-query" }
+rorm-error= { path = "../rorm-error" }
 
 [features]
 default = []
-sqlite = []
+sqlite = ["rorm-pool/sqlite"]
+"runtime-tokio-0.2" = ["rorm-pool/runtime-tokio-0.2"]
+"runtime-tokio-1" = ["rorm-pool/runtime-tokio-1"]
