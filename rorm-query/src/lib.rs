@@ -6,9 +6,8 @@ mod value;
 
 use insert::InsertBuilder;
 use select::SelectBuilder;
-use value::Value;
 
-pub use value::sql_str;
+pub use value::{sql_str, Value};
 pub use where_cond::Where;
 
 #[derive(Debug)]

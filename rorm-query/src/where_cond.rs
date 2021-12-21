@@ -1,32 +1,4 @@
-macro_rules! impl_condition_for_unsigned_int {
-    ($ty:ty) => {
-        impl From<$ty> for Where {
-            fn from(v: $ty) -> Self {
-                Self::UnsignedInt(v as u64)
-            }
-        }
-    };
-}
-
-macro_rules! impl_condition_for_signed_int {
-    ($ty:ty) => {
-        impl From<$ty> for Where {
-            fn from(v: $ty) -> Self {
-                Self::SignedInt(v as i64)
-            }
-        }
-    };
-}
-
-macro_rules! impl_condition_for_float {
-    ($ty:ty) => {
-        impl From<$ty> for Where {
-            fn from(v: $ty) -> Self {
-                Self::Float(v as f64)
-            }
-        }
-    };
-}
+use crate::Value;
 
 #[derive(Debug)]
 pub enum Where {
@@ -42,38 +14,12 @@ pub enum Where {
     Between(Box<Where>, Box<Where>, Box<Where>),
     In(Box<Where>, Vec<Where>),
     Like(Box<Where>, Box<Where>),
-    Quote(Box<Where>),
-    SignedInt(i64),
-    UnsignedInt(u64),
-    Float(f64),
-    Bool(bool),
-    Str(String),
+    Value(Value),
 }
 
-impl_condition_for_unsigned_int! {u8}
-impl_condition_for_unsigned_int! {u16}
-impl_condition_for_unsigned_int! {u32}
-impl_condition_for_signed_int! {i8}
-impl_condition_for_signed_int! {i16}
-impl_condition_for_signed_int! {i32}
-impl_condition_for_float! {f32}
-impl_condition_for_float! {f64}
-
-impl From<bool> for Where {
-    fn from(v: bool) -> Self {
-        Self::Bool(v)
-    }
-}
-
-impl From<String> for Where {
-    fn from(v: String) -> Self {
-        Self::Str(v)
-    }
-}
-
-impl From<&str> for Where {
-    fn from(v: &str) -> Self {
-        Self::Str(v.into())
+impl<T: Into<Value>> From<T> for Where {
+    fn from(v: T) -> Self {
+        Self::Value(v.into())
     }
 }
 
@@ -104,12 +50,7 @@ impl ToString for Where {
                     .join(", ")
             ),
             Self::Like(var, lik) => format!("({} LIKE {})", var.to_string(), lik.to_string()),
-            Self::Quote(cond) => format!("'{}'", cond.to_string()),
-            Self::SignedInt(n) => n.to_string(),
-            Self::UnsignedInt(n) => n.to_string(),
-            Self::Float(f) => f.to_string(),
-            Self::Bool(v) => v.to_string(),
-            Self::Str(v) => v.to_string(),
+            Self::Value(v) => v.to_string(),
         }
     }
 }
@@ -145,13 +86,6 @@ macro_rules! literal {
 macro_rules! not {
     ($expr:expr) => {
         $crate::Where::Not(Box::new($crate::literal!($expr)))
-    };
-}
-
-#[macro_export]
-macro_rules! quote {
-    ($expr:expr) => {
-        $crate::Where::Quote(Box::new($crate::literal!($expr)))
     };
 }
 
@@ -260,11 +194,7 @@ mod test {
 
         assert_eq!(&eq!("a", 1).to_string(), "(a = 1)");
 
-        assert_eq!(&quote!("1").to_string(), "'1'");
-
-        assert_eq!(&quote!("abc").to_string(), "'abc'");
-
-        assert_eq!(&eq!("a", quote!("abc")).to_string(), "(a = 'abc')");
+        assert_eq!(&eq!("a", sql_str("abc")).to_string(), "(a = 'abc')");
 
         assert_eq!(&eq!(eq!(1, 2), true).to_string(), "((1 = 2) = true)");
 
@@ -286,6 +216,6 @@ mod test {
 
         assert_eq!(&r#in!("a", [1, 2, 3]).to_string(), "(a IN (1, 2, 3))");
 
-        assert_eq!(&like!("a", quote!("abc")).to_string(), "(a LIKE 'abc')");
+        assert_eq!(&like!("a", sql_str("abc")).to_string(), "(a LIKE 'abc')");
     }
 }

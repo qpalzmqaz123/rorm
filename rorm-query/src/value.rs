@@ -46,7 +46,9 @@ macro_rules! impl_from_for_column {
     };
 }
 
+#[derive(Debug)]
 pub enum Value {
+    Bool(bool),
     SignedInt(i64),
     UnsignedInt(u64),
     Float(f64),
@@ -57,12 +59,19 @@ pub enum Value {
 impl ToString for Value {
     fn to_string(&self) -> String {
         match &self {
+            Self::Bool(v) => v.to_string(),
             Self::SignedInt(v) => v.to_string(),
             Self::UnsignedInt(v) => v.to_string(),
             Self::Float(v) => v.to_string(),
             Self::Column(v) => v.to_string(),
             Self::Str(v) => format!("'{}'", v),
         }
+    }
+}
+
+impl From<bool> for Value {
+    fn from(v: bool) -> Self {
+        Self::Bool(v)
     }
 }
 
