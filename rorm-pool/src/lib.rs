@@ -11,7 +11,7 @@ pub use drivers::sqlite;
 use rorm_error::Result;
 
 #[async_trait::async_trait]
-pub trait Driver {
+pub trait Driver: Sync + Send {
     async fn execute_one(&self, sql: &str, params: Vec<Value>) -> Result<u64>;
     async fn execute_many(&self, sql: &str, params: Vec<Vec<Value>>) -> Result<Vec<u64>>;
     async fn query_one(&self, sql: &str, params: Vec<Value>) -> Result<Row>;
