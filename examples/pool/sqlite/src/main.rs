@@ -1,14 +1,15 @@
-use rorm_pool::{sqlite, Driver, Value};
+use rorm_pool::{sqlite, Value};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
-    let conn = sqlite::Builder::memory().build()?;
+    let conn = sqlite::Builder::memory().connect()?;
 
     // Init table
     {
-        conn.execute("CREATE TABLE ta (a INTEGER)", vec![]).await?;
+        conn.execute_one("CREATE TABLE ta (a INTEGER)", vec![])
+            .await?;
     }
 
     // Insert value
@@ -27,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Query value
     let res = conn
-        .query_map("SELECT (a) FROM ta WHERE a < 5", vec![], |row| {
+        .query_many_map("SELECT (a) FROM ta WHERE a < 5", vec![], |row| {
             row.get::<i32>(0)
         })
         .await?;

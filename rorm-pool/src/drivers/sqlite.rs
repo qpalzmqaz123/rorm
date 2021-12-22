@@ -3,7 +3,7 @@ use std::path::Path;
 use r2d2_sqlite::{rusqlite, SqliteConnectionManager};
 use rorm_error::Result;
 
-use crate::{Driver, Row, Value};
+use crate::{Connection, Driver, Row, Value};
 
 #[cfg(feature = "runtime-tokio-0.2")]
 use tokio_02::task::spawn_blocking;
@@ -33,13 +33,13 @@ impl Builder {
         self
     }
 
-    pub fn build(self) -> Result<impl Driver> {
+    pub fn connect(self) -> Result<Connection> {
         let pool = self
             .r2d2_builder
             .build(self.mgr)
             .map_err(|e| rorm_error::connection!("SQLite connection error: {}", e))?;
 
-        Ok(SqlitePoolProxy::new(pool))
+        Ok(Connection::new(Box::new(SqlitePoolProxy::new(pool))))
     }
 }
 
@@ -55,20 +55,18 @@ impl SqlitePoolProxy {
 
 #[async_trait::async_trait]
 impl Driver for SqlitePoolProxy {
-    async fn execute(&self, sql: &str, params: Vec<Value>) -> Result<u64> {
+    async fn execute_one(&self, sql: &str, params: Vec<Value>) -> Result<u64> {
         let sql_string = sql.to_string();
         let pool = self.pool.clone();
         let id = spawn_blocking(move || {
             log::trace!("Get connection from pool");
             let conn = pool
                 .get()
-                .map_err(|e| rorm_error::timeout!("Get connection from pool timeout: {}", e))?;
+                .map_err(|e| rorm_error::database!("Get connection from pool timeout: {}", e))?;
 
-            log::trace!("Execute single `{}`, {:?}", sql_string, params);
-            let sqlite_param: Vec<&dyn rusqlite::ToSql> =
-                params.iter().map(|v| v as &dyn rusqlite::ToSql).collect();
-            conn.execute(&sql_string, &sqlite_param[..])
-                .map_err(|e| rorm_error::database!("Execute error: {}", e))?;
+            log::trace!("Execute one `{}`, {:?}", sql_string, params);
+            conn.execute(&sql_string, &rorm_param_to_rusqlite_param(&params)[..])
+                .map_err(|e| rorm_error::database!("Execute one error: {}", e))?;
 
             Result::Ok(conn.last_insert_rowid() as u64)
         })
@@ -85,14 +83,14 @@ impl Driver for SqlitePoolProxy {
             log::trace!("Get connection from pool");
             let mut conn = pool
                 .get()
-                .map_err(|e| rorm_error::timeout!("Get connection from pool timeout: {}", e))?;
+                .map_err(|e| rorm_error::database!("Get connection from pool timeout: {}", e))?;
 
             log::trace!("Start transaction");
             let tx = conn
                 .transaction()
                 .map_err(|e| rorm_error::database!("Start transaction error: {}", e))?;
 
-            log::trace!("Prepare many `{}`", sql_string);
+            log::trace!("Prepare execute many `{}`", sql_string);
             let mut stmt = tx.prepare(&sql_string).map_err(|e| {
                 rorm_error::database!("Prepare error: {}, sql: `{}`", e, sql_string)
             })?;
@@ -101,9 +99,7 @@ impl Driver for SqlitePoolProxy {
             for param in params {
                 log::trace!("Execute {:?}", param);
 
-                let sqlite_param: Vec<&dyn rusqlite::ToSql> =
-                    param.iter().map(|v| v as &dyn rusqlite::ToSql).collect();
-                stmt.execute(&sqlite_param[..])
+                stmt.execute(&rorm_param_to_rusqlite_param(&param)[..])
                     .map_err(|e| rorm_error::database!("Execute error: {}", e))?;
 
                 // Insert id
@@ -123,43 +119,68 @@ impl Driver for SqlitePoolProxy {
         Ok(ids)
     }
 
-    async fn query_map<F, T>(&self, sql: &str, params: Vec<Value>, map_fn: F) -> Result<Vec<T>>
-    where
-        T: Send + 'static,
-        F: Fn(Row) -> Result<T> + Send + 'static,
-    {
+    async fn query_one(&self, sql: &str, params: Vec<Value>) -> Result<Row> {
         let sql_string = sql.to_string();
         let pool = self.pool.clone();
-        let list = spawn_blocking(move || {
+        let row = spawn_blocking(move || {
             log::trace!("Get connection from pool");
             let conn = pool
                 .get()
-                .map_err(|e| rorm_error::timeout!("Get connection from pool timeout: {}", e))?;
+                .map_err(|e| rorm_error::database!("Get connection from pool timeout: {}", e))?;
 
-            log::trace!("Prepare query `{}`", sql_string);
-            let mut stmt = conn.prepare(&sql_string).map_err(|e| {
-                rorm_error::database!("Prepare query error: {}, sql: `{}`", e, sql_string)
-            })?;
+            log::trace!("Query one`{}`, {:?}", sql_string, params);
+            let row = conn
+                .query_row(
+                    &sql_string,
+                    &rorm_param_to_rusqlite_param(&params)[..],
+                    |row| Ok(rusqlite_row_to_rorm_row(row)),
+                )
+                .map_err(|e| rorm_error::database!("Query one error: {}", e))?;
 
-            log::trace!("Query {:?}", params);
-            let sqlite_param: Vec<&dyn rusqlite::ToSql> =
-                params.iter().map(|v| v as &dyn rusqlite::ToSql).collect();
-            let mut rows = stmt
-                .query(&sqlite_param[..])
-                .map_err(|e| rorm_error::database!("Query error: {}", e))?;
-            let mut res = Vec::<T>::new();
-            while let Ok(Some(row)) = rows.next() {
-                let row = rusqlite_row_to_rorm_row(row);
-                res.push(map_fn(row)?);
-            }
-
-            Result::<Vec<T>>::Ok(res)
+            Result::Ok(row)
         })
         .await
         .map_err(|e| rorm_error::runtime!("Tokio join error: {}", e))??;
 
-        Ok(list)
+        Ok(row)
     }
+
+    async fn query_many(&self, sql: &str, params: Vec<Value>) -> Result<Vec<Row>> {
+        let sql_string = sql.to_string();
+        let pool = self.pool.clone();
+        let rows = spawn_blocking(move || {
+            log::trace!("Get connection from pool");
+            let conn = pool
+                .get()
+                .map_err(|e| rorm_error::database!("Get connection from pool timeout: {}", e))?;
+
+            log::trace!("Prepare query many `{}`", sql_string);
+            let mut stmt = conn.prepare(&sql_string).map_err(|e| {
+                rorm_error::database!("Prepare query many error: {}, sql: `{}`", e, sql_string)
+            })?;
+
+            log::trace!("Query many {:?}", params);
+            let mut sql_rows = stmt
+                .query(&rorm_param_to_rusqlite_param(&params)[..])
+                .map_err(|e| rorm_error::database!("Query error: {}", e))?;
+            let mut rows = Vec::<Row>::new();
+            while let Ok(Some(row)) = sql_rows.next() {
+                let row = rusqlite_row_to_rorm_row(row);
+                log::trace!("Append row: {:?}", row);
+                rows.push(row);
+            }
+
+            Result::Ok(rows)
+        })
+        .await
+        .map_err(|e| rorm_error::runtime!("Tokio join error: {}", e))??;
+
+        Ok(rows)
+    }
+}
+
+fn rorm_param_to_rusqlite_param(params: &Vec<Value>) -> Vec<&'_ dyn rusqlite::ToSql> {
+    params.iter().map(|v| v as &dyn rusqlite::ToSql).collect()
 }
 
 fn rusqlite_row_to_rorm_row<'s>(src: &rusqlite::Row<'s>) -> Row {
