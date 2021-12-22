@@ -39,6 +39,26 @@ impl InsertBuilder {
         self
     }
 
+    /// Set columns
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rorm_query::{QueryBuilder, sql_str};
+    ///
+    /// let sql = QueryBuilder::insert("ta")
+    ///     .columns(&["a", "b", "c"])
+    ///     .values([1.into(), 2.into(), sql_str("abc")])
+    ///     .build()
+    ///     .unwrap();
+    ///
+    /// assert_eq!(&sql, "INSERT INTO ta (a, b, c) VALUES (1, 2, 'abc')");
+    /// ```
+    pub fn columns(&mut self, cols: &[&str]) -> &mut Self {
+        self.columns = cols.iter().map(|s| s.to_string()).collect::<Vec<String>>();
+        self
+    }
+
     /// Set values
     ///
     /// # Examples

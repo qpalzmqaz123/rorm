@@ -37,6 +37,25 @@ impl SelectBuilder {
         self
     }
 
+    /// Set columns
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rorm_query::{QueryBuilder, sql_str};
+    ///
+    /// let a = QueryBuilder::select("ta")
+    ///     .columns(&["a", "b"])
+    ///     .build()
+    ///     .unwrap();
+    ///
+    /// assert_eq!(&a, "SELECT a, b FROM ta");
+    /// ```
+    pub fn columns(&mut self, cols: &[&str]) -> &mut Self {
+        self.columns = cols.iter().map(|s| s.to_string()).collect::<Vec<String>>();
+        self
+    }
+
     /// Set where condition
     ///
     /// # Examples
