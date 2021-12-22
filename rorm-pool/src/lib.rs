@@ -24,7 +24,7 @@ pub struct Row {
 }
 
 impl Row {
-    pub fn get<T: FromValue>(&self, index: usize) -> Result<<T as FromValue>::Output> {
+    pub fn get<T: FromValue<Output = T>>(&self, index: usize) -> Result<T> {
         if let Some(v) = self.values.get(index) {
             Ok(T::from_value(v)?)
         } else {
