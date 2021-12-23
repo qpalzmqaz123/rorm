@@ -24,8 +24,8 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
     let insert_toks = gen_impl_table_insert(&info);
     let delete_toks = gen_impl_table_delete(&info);
     let update_toks = gen_impl_table_update(&info);
-    let find_one_toks = gen_impl_table_find_one(&info);
     let find_toks = gen_impl_table_find(&info);
+    let find_many_toks = gen_impl_table_find_many(&info);
     let gen_find_sql_and_params_toks = gen_impl_table_gen_find_sql_and_params(&info);
 
     quote! {
@@ -53,11 +53,11 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
             // pub async fn update<SM, DM>(src: SM, dst: DM, conn: &rorm::pool::Connection) -> rorm::error::Result<()>
             #update_toks
 
-            // pub async fn find_one<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Self>
-            #find_one_toks
-
-            // pub async fn find<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<Self>>
+            // pub async fn find<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Self>
             #find_toks
+
+            // pub async fn find_many<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<Self>>
+            #find_many_toks
 
             /*
              * Private methods
@@ -329,11 +329,11 @@ fn gen_impl_table_update(info: &TableInfo) -> TokenStream {
     }
 }
 
-fn gen_impl_table_find_one(info: &TableInfo) -> TokenStream {
+fn gen_impl_table_find(info: &TableInfo) -> TokenStream {
     let model_name = str_to_toks(&info.model_name);
 
     quote! {
-        pub async fn find_one<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Self>
+        pub async fn find<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Self>
         where
             M: Into<#model_name>,
         {
@@ -349,11 +349,11 @@ fn gen_impl_table_find_one(info: &TableInfo) -> TokenStream {
     }
 }
 
-fn gen_impl_table_find(info: &TableInfo) -> TokenStream {
+fn gen_impl_table_find_many(info: &TableInfo) -> TokenStream {
     let model_name = str_to_toks(&info.model_name);
 
     quote! {
-        pub async fn find<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<Self>>
+        pub async fn find_many<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<Self>>
         where
             M: Into<#model_name>,
         {
