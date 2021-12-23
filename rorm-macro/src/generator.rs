@@ -22,6 +22,7 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
     let columns: Vec<&String> = info.columns.iter().map(|v| &v.name).collect();
     let from_row_toks = gen_impl_table_from_row(&info);
     let insert_toks = gen_impl_table_insert(&info);
+    let insert_many_toks = gen_impl_table_insert_many(&info);
     let delete_toks = gen_impl_table_delete(&info);
     let update_toks = gen_impl_table_update(&info);
     let find_toks = gen_impl_table_find(&info);
@@ -46,6 +47,9 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
 
             // pub async fn insert<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<#ty>
             #insert_toks
+
+            // pub async fn insert_many<T, M>(models: T, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<#primary_key_type>>
+            #insert_many_toks
 
             // pub async fn delete<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<()>
             #delete_toks
@@ -261,6 +265,49 @@ fn gen_impl_table_insert(info: &TableInfo) -> TokenStream {
 
             // FIXME: Union index is not currently supported
             Ok(key as #primary_key_type)
+        }
+    }
+}
+
+fn gen_impl_table_insert_many(info: &TableInfo) -> TokenStream {
+    let primary_key_type = gen_primary_key_type_toks(&info.columns, &info.primary_keys);
+    let model_name = str_to_toks(&info.model_name);
+    let sql_params_toks: Vec<TokenStream> = info
+        .columns
+        .iter()
+        .map(|col| {
+            let name = str_to_toks(&col.name);
+            quote! {
+                model.#name.to_value()
+            }
+        })
+        .collect();
+    let values_toks = (0..info.columns.len())
+        .map(|_| quote! {"?".into()})
+        .collect::<Vec<_>>();
+
+    quote! {
+        pub async fn insert_many<T, M>(models: T, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<#primary_key_type>>
+        where
+            T: IntoIterator<Item = M>,
+            M: Into<#model_name>,
+        {
+            use rorm::pool::ToValue;
+
+            let params = models
+                .into_iter()
+                .map(|v| {
+                    let model: #model_name = v.into();
+                    vec![#(#sql_params_toks),*]
+                })
+                .collect::<Vec<Vec<rorm::pool::Value>>>();
+            let sql = rorm::query::QueryBuilder::insert(Self::TABLE_NAME)
+                .columns(&Self::COLUMNS)
+                .values([#(#values_toks),*])
+                .build()?;
+            let keys = conn.execute_many(&sql, params).await?;
+
+            Ok(keys.into_iter().map(|k| k as #primary_key_type).collect())
         }
     }
 }
