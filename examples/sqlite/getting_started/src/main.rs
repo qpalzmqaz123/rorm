@@ -109,5 +109,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }]
     );
 
+    // Insert many
+    let carl = UserModel {
+        name: Set("carl".into()),
+        ..Default::default()
+    };
+    let lee = UserModel {
+        name: Set("lee".into()),
+        ..Default::default()
+    };
+    User::insert_many([carl, lee], &conn).await?;
+    let list = User::find_many(UserModel::default(), &conn).await?;
+    assert_eq!(
+        list,
+        vec![
+            User {
+                id: 2,
+                name: "alex".into(),
+            },
+            User {
+                id: 3,
+                name: "carl".into(),
+            },
+            User {
+                id: 4,
+                name: "lee".into(),
+            }
+        ]
+    );
+
     Ok(())
 }
