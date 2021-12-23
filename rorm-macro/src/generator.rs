@@ -24,7 +24,6 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
     let insert_toks = gen_impl_table_insert(&info);
     let find_one_toks = gen_impl_table_find_one(&info);
     let find_toks = gen_impl_table_find(&info);
-    let find_by_primary_key_toks = gen_impl_table_find_by_primary_key(&info);
     let gen_find_sql_and_params_toks = gen_impl_table_gen_find_sql_and_params(&info);
 
     quote! {
@@ -51,9 +50,6 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
 
             // pub async fn find<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<Self>>
             #find_toks
-
-            // pub async fn find_by_#primary_key(key: u32, conn: &rorm::pool::Connection) -> rorm::error::Result<Self>
-            #find_by_primary_key_toks
 
             /*
              * Private methods
@@ -271,43 +267,6 @@ fn gen_impl_table_find(info: &TableInfo) -> TokenStream {
                 .await?;
 
             Ok(res_list)
-        }
-    }
-}
-
-fn gen_impl_table_find_by_primary_key(info: &TableInfo) -> TokenStream {
-    let func_name = str_to_toks(&format!("find_by_{}", info.primary_keys.join("_")));
-    let primary_keys_type = gen_primary_key_type_toks(&info.columns, &info.primary_keys);
-
-    let fields_toks = match info.primary_keys.len() {
-        0 => Vec::new(),
-        1 => {
-            let key = str_to_toks(&info.primary_keys[0]);
-            vec![quote! {
-                #key: rorm::Set(key),
-            }]
-        }
-        _ => info
-            .primary_keys
-            .iter()
-            .enumerate()
-            .map(|(index, key)| {
-                let key = str_to_toks(key);
-                quote! {
-                    #key: rorm::Set(key.#index),
-                }
-            })
-            .collect(),
-    };
-
-    quote! {
-        pub async fn #func_name(key: #primary_keys_type, conn: &rorm::pool::Connection) -> rorm::error::Result<Self> {
-            let model = UserModel {
-                #(#fields_toks)*
-                ..Default::default()
-            };
-
-            Ok(Self::find_one(model, conn).await?)
         }
     }
 }
