@@ -1,6 +1,7 @@
 mod delete;
 mod insert;
 mod select;
+mod update;
 #[macro_use]
 mod where_cond;
 mod value;
@@ -8,6 +9,7 @@ mod value;
 pub use delete::DeleteBuilder;
 pub use insert::InsertBuilder;
 pub use select::SelectBuilder;
+pub use update::UpdateBuilder;
 pub use value::{sql_str, Value};
 pub use where_cond::Where;
 
@@ -23,7 +25,9 @@ impl QueryBuilder {
         InsertBuilder::new(table)
     }
 
-    pub fn update() {}
+    pub fn update(table: &str) -> UpdateBuilder {
+        UpdateBuilder::new(table)
+    }
 
     pub fn delete(table: &str) -> DeleteBuilder {
         DeleteBuilder::new(table)
