@@ -7,6 +7,7 @@ pub struct SelectBuilder {
     table: String,
     columns: Vec<String>,
     where_cond: Option<Where>,
+    order_bys: Vec<(String, bool)>, // (column, is_asc)
 }
 
 impl SelectBuilder {
@@ -76,6 +77,55 @@ impl SelectBuilder {
         self
     }
 
+    /// Append order by
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rorm_query::{QueryBuilder, and, lt, gt};
+    ///
+    /// let sql = QueryBuilder::select("ta")
+    ///     .column("a")
+    ///     .where_cond(and!(gt!("a", 1), lt!("b", 5)))
+    ///     .order_by("a", true)
+    ///     .order_by("b", false)
+    ///     .build()
+    ///     .unwrap();
+    ///
+    /// assert_eq!(&sql, "SELECT a FROM ta WHERE ((a > 1) AND (b < 5)) ORDER BY a ASC, b DESC");
+    /// ```
+    pub fn order_by(&mut self, col: &str, is_asc: bool) -> &mut Self {
+        self.order_bys.push((col.into(), is_asc));
+        self
+    }
+
+    /// Append order by
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rorm_query::{QueryBuilder, and, lt, gt};
+    ///
+    /// let sql = QueryBuilder::select("ta")
+    ///     .column("a")
+    ///     .where_cond(and!(gt!("a", 1), lt!("b", 5)))
+    ///     .order_bys([("a", true), ("b", false)])
+    ///     .build()
+    ///     .unwrap();
+    ///
+    /// assert_eq!(&sql, "SELECT a FROM ta WHERE ((a > 1) AND (b < 5)) ORDER BY a ASC, b DESC");
+    /// ```
+    pub fn order_bys<'a, T>(&mut self, list: T) -> &mut Self
+    where
+        T: IntoIterator<Item = (&'a str, bool)>,
+    {
+        self.order_bys = list
+            .into_iter()
+            .map(|(name, is_asc)| (name.into(), is_asc))
+            .collect();
+        self
+    }
+
     /// Build sql
     pub fn build(&self) -> Result<String> {
         // Validate builder
@@ -97,6 +147,28 @@ impl SelectBuilder {
         if let Some(whe) = &self.where_cond {
             parts.push("WHERE".into());
             parts.push(whe.to_string());
+        }
+
+        // Build order by
+        if !self.order_bys.is_empty() {
+            parts.push("ORDER BY".into());
+            parts.push(
+                self.order_bys
+                    .iter()
+                    .map(|(name, is_asc)| {
+                        format!(
+                            "{} {}",
+                            name,
+                            if *is_asc {
+                                "ASC".to_string()
+                            } else {
+                                "DESC".to_string()
+                            }
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            )
         }
 
         Ok(parts.join(" "))
