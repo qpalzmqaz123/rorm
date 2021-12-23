@@ -109,6 +109,20 @@ fn gen_model(info: &TableInfo) -> TokenStream {
             }
         })
         .collect();
+    let gen_set_and_params_field_toks: Vec<TokenStream> = info
+        .columns
+        .iter()
+        .map(|col| {
+            let name_str = &col.name;
+            let name = str_to_toks(&col.name);
+            quote! {
+                if let rorm::Set(v) = self.#name {
+                    params.push(v.to_value());
+                    sets.push((#name_str, "?".into()));
+                }
+            }
+        })
+        .collect();
     let primary_key_types = gen_primary_key_type_toks(&info.columns, &info.primary_keys);
     let from_primary_key_field_toks = match info.primary_keys.len() {
         0 => Vec::new(),
@@ -169,6 +183,18 @@ fn gen_model(info: &TableInfo) -> TokenStream {
                 #(#gen_where_and_params_field_toks)*
 
                 (cond, params)
+            }
+
+            // gen_set_and_params
+            pub fn gen_set_and_params(self) -> (Vec<(&'static str, rorm::query::Value)>, Vec<rorm::pool::Value>) {
+                use rorm::pool::ToValue;
+
+                let mut sets = Vec::new();
+                let mut params = Vec::new();
+
+                #(#gen_set_and_params_field_toks)*
+
+                (sets, params)
             }
         }
     }
