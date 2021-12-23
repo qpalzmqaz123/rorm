@@ -8,7 +8,8 @@ pub struct SelectBuilder {
     columns: Vec<String>,
     where_cond: Option<Where>,
     group_bys: Vec<String>,
-    order_bys: Vec<(String, bool)>, // (column, is_asc)
+    order_bys: Vec<(String, bool)>,  // (column, is_asc)
+    limit: Option<(String, String)>, // (limit, offset)
 }
 
 impl SelectBuilder {
@@ -177,6 +178,32 @@ impl SelectBuilder {
         self
     }
 
+    /// Set limit and offset
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rorm_query::{QueryBuilder, and, lt, gt};
+    ///
+    /// let sql = QueryBuilder::select("ta")
+    ///     .column("a")
+    ///     .where_cond(and!(gt!("a", 1), lt!("b", 5)))
+    ///     .order_bys([("a", true), ("b", false)])
+    ///     .limit(10, 20)
+    ///     .build()
+    ///     .unwrap();
+    ///
+    /// assert_eq!(&sql, "SELECT a FROM ta WHERE ((a > 1) AND (b < 5)) ORDER BY a ASC, b DESC LIMIT 10 OFFSET 20");
+    /// ```
+    pub fn limit<L, O>(&mut self, limit: L, offset: O) -> &mut Self
+    where
+        L: ToString,
+        O: ToString,
+    {
+        self.limit = Some((limit.to_string(), offset.to_string()));
+        self
+    }
+
     /// Build sql
     pub fn build(&self) -> Result<String> {
         // Validate builder
@@ -232,6 +259,14 @@ impl SelectBuilder {
                     .collect::<Vec<_>>()
                     .join(", "),
             )
+        }
+
+        // Build limit
+        if let Some((limit, offset)) = &self.limit {
+            parts.push("LIMIT".into());
+            parts.push(limit.into());
+            parts.push("OFFSET".into());
+            parts.push(offset.into());
         }
 
         Ok(parts.join(" "))
