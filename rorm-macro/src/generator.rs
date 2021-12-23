@@ -22,6 +22,7 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
     let columns: Vec<&String> = info.columns.iter().map(|v| &v.name).collect();
     let from_row_toks = gen_impl_table_from_row(&info);
     let insert_toks = gen_impl_table_insert(&info);
+    let delete_toks = gen_impl_table_delete(&info);
     let find_one_toks = gen_impl_table_find_one(&info);
     let find_toks = gen_impl_table_find(&info);
     let gen_find_sql_and_params_toks = gen_impl_table_gen_find_sql_and_params(&info);
@@ -44,6 +45,9 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
 
             // pub async fn insert<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<#ty>
             #insert_toks
+
+            // pub async fn delete<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<()>
+            #delete_toks
 
             // pub async fn find_one<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Self>
             #find_one_toks
@@ -227,6 +231,34 @@ fn gen_impl_table_insert(info: &TableInfo) -> TokenStream {
 
             // FIXME: Union index is not currently supported
             Ok(key as #primary_key_type)
+        }
+    }
+}
+
+fn gen_impl_table_delete(info: &TableInfo) -> TokenStream {
+    let model_name = str_to_toks(&info.model_name);
+
+    quote! {
+        pub async fn delete<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<()>
+        where
+            M: Into<#model_name>,
+        {
+            let model: #model_name = model.into();
+            let mut sql_builder = rorm::query::QueryBuilder::delete(Self::TABLE_NAME);
+            let (cond, params) = model.gen_where_and_params();
+
+            // Set builder
+            if let Some(cond) = cond {
+                sql_builder.where_cond(cond);
+            }
+
+            // Build sql
+            let sql = sql_builder.build()?;
+
+            // Execute
+            conn.execute_one(&sql, params).await?;
+
+            Ok(())
         }
     }
 }
