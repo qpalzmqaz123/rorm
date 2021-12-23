@@ -109,6 +109,27 @@ fn gen_model(info: &TableInfo) -> TokenStream {
             }
         })
         .collect();
+    let primary_key_types = gen_primary_key_type_toks(&info.columns, &info.primary_keys);
+    let from_primary_key_field_toks = match info.primary_keys.len() {
+        0 => Vec::new(),
+        1 => {
+            let name = str_to_toks(&info.primary_keys[0]);
+            vec![quote! {
+                #name: rorm::Set(v),
+            }]
+        }
+        _ => info
+            .primary_keys
+            .iter()
+            .enumerate()
+            .map(|(index, name)| {
+                let name = str_to_toks(name);
+                quote! {
+                    #name: rorm::Set(v.#index),
+                }
+            })
+            .collect(),
+    };
 
     quote! {
         // Model name
@@ -122,6 +143,16 @@ fn gen_model(info: &TableInfo) -> TokenStream {
             fn from(v: #struct_name) -> Self {
                 #model_name {
                     #(#from_field_toks)*
+                }
+            }
+        }
+
+        // Impl from primary key's type to model
+        impl From<#primary_key_types> for #model_name {
+            fn from(v: #primary_key_types) -> Self {
+                #model_name {
+                    #(#from_primary_key_field_toks)*
+                    ..Default::default()
                 }
             }
         }
