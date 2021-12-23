@@ -23,6 +23,7 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
     let from_row_toks = gen_impl_table_from_row(&info);
     let insert_toks = gen_impl_table_insert(&info);
     let delete_toks = gen_impl_table_delete(&info);
+    let update_toks = gen_impl_table_update(&info);
     let find_one_toks = gen_impl_table_find_one(&info);
     let find_toks = gen_impl_table_find(&info);
     let gen_find_sql_and_params_toks = gen_impl_table_gen_find_sql_and_params(&info);
@@ -48,6 +49,9 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
 
             // pub async fn delete<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<()>
             #delete_toks
+
+            // pub async fn update<SM, DM>(src: SM, dst: DM, conn: &rorm::pool::Connection) -> rorm::error::Result<()>
+            #update_toks
 
             // pub async fn find_one<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Self>
             #find_one_toks
@@ -280,6 +284,42 @@ fn gen_impl_table_delete(info: &TableInfo) -> TokenStream {
 
             // Build sql
             let sql = sql_builder.build()?;
+
+            // Execute
+            conn.execute_one(&sql, params).await?;
+
+            Ok(())
+        }
+    }
+}
+
+fn gen_impl_table_update(info: &TableInfo) -> TokenStream {
+    let model_name = str_to_toks(&info.model_name);
+
+    quote! {
+        pub async fn update<SM, DM>(src: SM, dst: DM, conn: &rorm::pool::Connection) -> rorm::error::Result<()>
+        where
+            SM: Into<#model_name>,
+            DM: Into<#model_name>,
+        {
+            let src: #model_name = src.into();
+            let dst: #model_name = dst.into();
+            let mut sql_builder = rorm::query::QueryBuilder::update(Self::TABLE_NAME);
+            let (src_cond, mut src_params) = src.gen_where_and_params();
+            let (dst_sets, dst_params) = dst.gen_set_and_params();
+
+            // Set builder
+            if let Some(cond) = src_cond {
+                sql_builder.where_cond(cond);
+            }
+
+            sql_builder.sets(dst_sets);
+
+            // Build sql
+            let sql = sql_builder.build()?;
+
+            let mut params = dst_params;
+            params.append(&mut src_params);
 
             // Execute
             conn.execute_one(&sql, params).await?;
