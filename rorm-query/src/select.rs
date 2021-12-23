@@ -7,6 +7,7 @@ pub struct SelectBuilder {
     table: String,
     columns: Vec<String>,
     where_cond: Option<Where>,
+    group_bys: Vec<String>,
     order_bys: Vec<(String, bool)>, // (column, is_asc)
 }
 
@@ -77,6 +78,56 @@ impl SelectBuilder {
         self
     }
 
+    /// Append group by
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rorm_query::{QueryBuilder, and, lt, gt};
+    ///
+    /// let sql = QueryBuilder::select("ta")
+    ///     .column("a")
+    ///     .where_cond(and!(gt!("a", 1), lt!("b", 5)))
+    ///     .group_by("a")
+    ///     .group_by("b")
+    ///     .order_by("a", true)
+    ///     .order_by("b", false)
+    ///     .build()
+    ///     .unwrap();
+    ///
+    /// assert_eq!(&sql, "SELECT a FROM ta WHERE ((a > 1) AND (b < 5)) GROUP BY a, b ORDER BY a ASC, b DESC");
+    /// ```
+    pub fn group_by(&mut self, col: &str) -> &mut Self {
+        self.group_bys.push(col.into());
+        self
+    }
+
+    /// Set group by list
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rorm_query::{QueryBuilder, and, lt, gt};
+    ///
+    /// let sql = QueryBuilder::select("ta")
+    ///     .column("a")
+    ///     .where_cond(and!(gt!("a", 1), lt!("b", 5)))
+    ///     .group_bys(["a", "b"])
+    ///     .order_by("a", true)
+    ///     .order_by("b", false)
+    ///     .build()
+    ///     .unwrap();
+    ///
+    /// assert_eq!(&sql, "SELECT a FROM ta WHERE ((a > 1) AND (b < 5)) GROUP BY a, b ORDER BY a ASC, b DESC");
+    /// ```
+    pub fn group_bys<'a, T>(&mut self, list: T) -> &mut Self
+    where
+        T: IntoIterator<Item = &'a str>,
+    {
+        self.group_bys = list.into_iter().map(|v| v.into()).collect();
+        self
+    }
+
     /// Append order by
     ///
     /// # Examples
@@ -99,7 +150,7 @@ impl SelectBuilder {
         self
     }
 
-    /// Append order by
+    /// Set order by list
     ///
     /// # Examples
     ///
@@ -147,6 +198,18 @@ impl SelectBuilder {
         if let Some(whe) = &self.where_cond {
             parts.push("WHERE".into());
             parts.push(whe.to_string());
+        }
+
+        // Build group by
+        if !self.group_bys.is_empty() {
+            parts.push("GROUP BY".into());
+            parts.push(
+                self.group_bys
+                    .iter()
+                    .map(|name| name.clone())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            )
         }
 
         // Build order by
