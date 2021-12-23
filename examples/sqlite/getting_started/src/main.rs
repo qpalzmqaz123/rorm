@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(alice_id, 2);
 
     // Find bob by id
-    let bob = User::find_by_id(1, &conn).await?;
+    let bob = User::find_one(1, &conn).await?;
     assert_eq!(
         bob,
         User {
@@ -77,6 +77,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 name: "alice".into(),
             }
         ]
+    );
+
+    // Delete bob
+    User::delete(1, &conn).await?;
+    let list = User::find(UserModel::default(), &conn).await?;
+    assert_eq!(
+        list,
+        vec![User {
+            id: 2,
+            name: "alice".into(),
+        }]
+    );
+
+    // Update alice
+    User::update(
+        2,
+        UserModel {
+            name: Set("alex".into()),
+            ..Default::default()
+        },
+        &conn,
+    )
+    .await?;
+    let list = User::find(UserModel::default(), &conn).await?;
+    assert_eq!(
+        list,
+        vec![User {
+            id: 2,
+            name: "alex".into(),
+        }]
     );
 
     Ok(())
