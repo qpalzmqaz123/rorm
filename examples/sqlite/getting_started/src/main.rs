@@ -1,4 +1,5 @@
 #[derive(Debug, rorm::Entity, PartialEq, Eq)]
+#[rorm(table_name = "user")]
 struct User {
     #[rorm(primary_key)]
     pub id: u32,
@@ -19,6 +20,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         vec![],
     )
     .await?;
+
+    // Check table name
+    assert_eq!("user", User::TABLE_NAME);
 
     // Insert bob
     let bob = UserModel {
