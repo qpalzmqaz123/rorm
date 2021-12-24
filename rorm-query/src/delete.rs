@@ -9,9 +9,12 @@ pub struct DeleteBuilder {
 }
 
 impl DeleteBuilder {
-    pub fn new(table: &str) -> Self {
+    pub fn new<S>(table: S) -> Self
+    where
+        S: ToString,
+    {
         Self {
-            table: table.into(),
+            table: table.to_string(),
             ..Default::default()
         }
     }

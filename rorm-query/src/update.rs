@@ -10,9 +10,12 @@ pub struct UpdateBuilder {
 }
 
 impl UpdateBuilder {
-    pub fn new(table: &str) -> Self {
+    pub fn new<S>(table: S) -> Self
+    where
+        S: ToString,
+    {
         Self {
-            table: table.into(),
+            table: table.to_string(),
             ..Default::default()
         }
     }
@@ -32,8 +35,11 @@ impl UpdateBuilder {
     ///
     /// assert_eq!(&sql, "UPDATE ta SET a = 1, b = 'abc'");
     /// ```
-    pub fn set(&mut self, col: &str, val: Value) -> &mut Self {
-        self.kvs.push((col.into(), val.to_string()));
+    pub fn set<S>(&mut self, col: S, val: Value) -> &mut Self
+    where
+        S: ToString,
+    {
+        self.kvs.push((col.to_string(), val.to_string()));
         self
     }
 
@@ -51,13 +57,14 @@ impl UpdateBuilder {
     ///
     /// assert_eq!(&sql, "UPDATE ta SET a = 1, b = 'abc'");
     /// ```
-    pub fn sets<'a, T>(&mut self, kvs: T) -> &mut Self
+    pub fn sets<T, S>(&mut self, kvs: T) -> &mut Self
     where
-        T: IntoIterator<Item = (&'a str, Value)>,
+        T: IntoIterator<Item = (S, Value)>,
+        S: ToString,
     {
         self.kvs = kvs
             .into_iter()
-            .map(|(k, v)| (k.into(), v.to_string()))
+            .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect();
         self
     }

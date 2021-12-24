@@ -8,14 +8,17 @@ pub struct SelectBuilder {
     columns: Vec<String>,
     where_cond: Option<Where>,
     group_bys: Vec<String>,
-    order_bys: Vec<(String, bool)>,  // (column, is_asc)
-    limit: Option<(String, String)>, // (limit, offset)
+    order_bys: Vec<(String, bool)>, // (column, is_asc)
+    limit: Option<(u64, u64)>,      // (limit, offset)
 }
 
 impl SelectBuilder {
-    pub fn new(table: &str) -> Self {
+    pub fn new<S>(table: S) -> Self
+    where
+        S: ToString,
+    {
         Self {
-            table: table.into(),
+            table: table.to_string(),
             ..Default::default()
         }
     }
@@ -35,8 +38,11 @@ impl SelectBuilder {
     ///
     /// assert_eq!(&a, "SELECT a, b FROM ta");
     /// ```
-    pub fn column(&mut self, col: &str) -> &mut Self {
-        self.columns.push(col.into());
+    pub fn column<S>(&mut self, col: S) -> &mut Self
+    where
+        S: ToString,
+    {
+        self.columns.push(col.to_string());
         self
     }
 
@@ -54,8 +60,15 @@ impl SelectBuilder {
     ///
     /// assert_eq!(&a, "SELECT a, b FROM ta");
     /// ```
-    pub fn columns(&mut self, cols: &[&str]) -> &mut Self {
-        self.columns = cols.iter().map(|s| s.to_string()).collect::<Vec<String>>();
+    pub fn columns<T, S>(&mut self, cols: T) -> &mut Self
+    where
+        T: IntoIterator<Item = S>,
+        S: ToString,
+    {
+        self.columns = cols
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
         self
     }
 
@@ -98,8 +111,11 @@ impl SelectBuilder {
     ///
     /// assert_eq!(&sql, "SELECT a FROM ta WHERE ((a > 1) AND (b < 5)) GROUP BY a, b ORDER BY a ASC, b DESC");
     /// ```
-    pub fn group_by(&mut self, col: &str) -> &mut Self {
-        self.group_bys.push(col.into());
+    pub fn group_by<S>(&mut self, col: S) -> &mut Self
+    where
+        S: ToString,
+    {
+        self.group_bys.push(col.to_string());
         self
     }
 
@@ -121,11 +137,12 @@ impl SelectBuilder {
     ///
     /// assert_eq!(&sql, "SELECT a FROM ta WHERE ((a > 1) AND (b < 5)) GROUP BY a, b ORDER BY a ASC, b DESC");
     /// ```
-    pub fn group_bys<'a, T>(&mut self, list: T) -> &mut Self
+    pub fn group_bys<T, S>(&mut self, list: T) -> &mut Self
     where
-        T: IntoIterator<Item = &'a str>,
+        T: IntoIterator<Item = S>,
+        S: ToString,
     {
-        self.group_bys = list.into_iter().map(|v| v.into()).collect();
+        self.group_bys = list.into_iter().map(|v| v.to_string()).collect();
         self
     }
 
@@ -146,8 +163,11 @@ impl SelectBuilder {
     ///
     /// assert_eq!(&sql, "SELECT a FROM ta WHERE ((a > 1) AND (b < 5)) ORDER BY a ASC, b DESC");
     /// ```
-    pub fn order_by(&mut self, col: &str, is_asc: bool) -> &mut Self {
-        self.order_bys.push((col.into(), is_asc));
+    pub fn order_by<S>(&mut self, col: S, is_asc: bool) -> &mut Self
+    where
+        S: ToString,
+    {
+        self.order_bys.push((col.to_string(), is_asc));
         self
     }
 
@@ -167,13 +187,14 @@ impl SelectBuilder {
     ///
     /// assert_eq!(&sql, "SELECT a FROM ta WHERE ((a > 1) AND (b < 5)) ORDER BY a ASC, b DESC");
     /// ```
-    pub fn order_bys<'a, T>(&mut self, list: T) -> &mut Self
+    pub fn order_bys<T, S>(&mut self, list: T) -> &mut Self
     where
-        T: IntoIterator<Item = (&'a str, bool)>,
+        T: IntoIterator<Item = (S, bool)>,
+        S: ToString,
     {
         self.order_bys = list
             .into_iter()
-            .map(|(name, is_asc)| (name.into(), is_asc))
+            .map(|(name, is_asc)| (name.to_string(), is_asc))
             .collect();
         self
     }
@@ -195,12 +216,8 @@ impl SelectBuilder {
     ///
     /// assert_eq!(&sql, "SELECT a FROM ta WHERE ((a > 1) AND (b < 5)) ORDER BY a ASC, b DESC LIMIT 10 OFFSET 20");
     /// ```
-    pub fn limit<L, O>(&mut self, limit: L, offset: O) -> &mut Self
-    where
-        L: ToString,
-        O: ToString,
-    {
-        self.limit = Some((limit.to_string(), offset.to_string()));
+    pub fn limit(&mut self, limit: u64, offset: u64) -> &mut Self {
+        self.limit = Some((limit, offset));
         self
     }
 
@@ -264,9 +281,9 @@ impl SelectBuilder {
         // Build limit
         if let Some((limit, offset)) = &self.limit {
             parts.push("LIMIT".into());
-            parts.push(limit.into());
+            parts.push(limit.to_string());
             parts.push("OFFSET".into());
-            parts.push(offset.into());
+            parts.push(offset.to_string());
         }
 
         Ok(parts.join(" "))

@@ -10,9 +10,12 @@ pub struct InsertBuilder {
 }
 
 impl InsertBuilder {
-    pub fn new(table: &str) -> Self {
+    pub fn new<S>(table: S) -> Self
+    where
+        S: ToString,
+    {
         Self {
-            table: table.into(),
+            table: table.to_string(),
             ..Default::default()
         }
     }
@@ -34,8 +37,11 @@ impl InsertBuilder {
     ///
     /// assert_eq!(&sql, "INSERT INTO ta (a, b, c) VALUES (1, 2, 'abc')");
     /// ```
-    pub fn column(&mut self, col: &str) -> &mut Self {
-        self.columns.push(col.into());
+    pub fn column<S>(&mut self, col: S) -> &mut Self
+    where
+        S: ToString,
+    {
+        self.columns.push(col.to_string());
         self
     }
 
@@ -54,8 +60,15 @@ impl InsertBuilder {
     ///
     /// assert_eq!(&sql, "INSERT INTO ta (a, b, c) VALUES (1, 2, 'abc')");
     /// ```
-    pub fn columns(&mut self, cols: &[&str]) -> &mut Self {
-        self.columns = cols.iter().map(|s| s.to_string()).collect::<Vec<String>>();
+    pub fn columns<T, S>(&mut self, cols: T) -> &mut Self
+    where
+        T: IntoIterator<Item = S>,
+        S: ToString,
+    {
+        self.columns = cols
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
         self
     }
 
