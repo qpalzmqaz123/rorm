@@ -7,9 +7,9 @@ struct User {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
+    use rorm::{FindOption, ModelColumn::Set};
 
-    use rorm::ModelColumn::Set;
+    env_logger::init();
 
     let conn = rorm::pool::sqlite::Builder::memory().connect()?;
 
@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(alice_id, 2);
 
     // Find bob by id
-    let bob = User::find(1, &conn).await?;
+    let bob = User::find(1, None, &conn).await?;
     assert_eq!(
         bob,
         User {
@@ -52,6 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             name: Set("alice".into()),
             ..Default::default()
         },
+        None,
         &conn,
     )
     .await?;
@@ -64,7 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Find list
-    let list = User::find_many(UserModel::default(), &conn).await?;
+    let list = User::find_many(UserModel::default(), None, &conn).await?;
     assert_eq!(
         list,
         vec![
@@ -81,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Delete bob
     User::delete(1, &conn).await?;
-    let list = User::find_many(UserModel::default(), &conn).await?;
+    let list = User::find_many(UserModel::default(), None, &conn).await?;
     assert_eq!(
         list,
         vec![User {
@@ -100,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         &conn,
     )
     .await?;
-    let list = User::find_many(UserModel::default(), &conn).await?;
+    let list = User::find_many(UserModel::default(), None, &conn).await?;
     assert_eq!(
         list,
         vec![User {
@@ -119,7 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Default::default()
     };
     User::insert_many([carl, lee], &conn).await?;
-    let list = User::find_many(UserModel::default(), &conn).await?;
+    let list = User::find_many(UserModel::default(), None, &conn).await?;
     assert_eq!(
         list,
         vec![
@@ -135,6 +136,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 id: 4,
                 name: "lee".into(),
             }
+        ]
+    );
+
+    // Find order by id desc limit 2
+    let list = User::find_many(
+        UserModel::default(),
+        Some(FindOption {
+            orders: vec![("id".into(), false)],
+            limit: Some((2, 0)),
+            ..Default::default()
+        }),
+        &conn,
+    )
+    .await?;
+    assert_eq!(
+        list,
+        vec![
+            User {
+                id: 4,
+                name: "lee".into(),
+            },
+            User {
+                id: 3,
+                name: "carl".into(),
+            },
         ]
     );
 
