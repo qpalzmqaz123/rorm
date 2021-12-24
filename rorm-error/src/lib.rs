@@ -16,6 +16,8 @@ pub enum Error {
     OutOfRange(String),
     #[error("QueryBuilder: `{0}`")]
     QueryBuilder(String),
+    #[error("Argument: `{0}`")]
+    Argument(String),
 }
 
 #[macro_export]
@@ -51,4 +53,9 @@ macro_rules! out_of_range {
 #[macro_export]
 macro_rules! query_builder {
     ($($arg:tt)*) => { $crate::Error::QueryBuilder(format!($($arg)*)) };
+}
+
+#[macro_export]
+macro_rules! argument {
+    ($($arg:tt)*) => { $crate::Error::Argument(format!($($arg)*)) };
 }

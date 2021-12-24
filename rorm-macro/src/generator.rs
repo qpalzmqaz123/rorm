@@ -441,6 +441,7 @@ fn gen_impl_table_gen_find_sql_and_params(info: &TableInfo) -> TokenStream {
             let model: #model_name = model.into();
             let mut sql_builder = rorm::query::QueryBuilder::select(Self::TABLE_NAME);
             let (cond, params) = model.gen_where_and_params();
+            let already_has_cond = cond.is_some();
 
             // Set builder
             sql_builder.columns(Self::COLUMNS);
@@ -450,7 +451,10 @@ fn gen_impl_table_gen_find_sql_and_params(info: &TableInfo) -> TokenStream {
 
             // Set option
             if let Some(option) = option {
-                // TODO: Check model condition
+                // Check model condition
+                if already_has_cond {
+                    return Err(rorm::error::argument!("Where condition conflict, model must be empty when option.where_cond was set; model: {}", std::any::type_name::<#model_name>()));
+                }
 
                 // Update builder
                 option.update_sql_builder(&mut sql_builder);
