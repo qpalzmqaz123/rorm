@@ -49,18 +49,30 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
             #insert_toks
 
             // pub async fn insert_many<T, M>(models: T, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<#primary_key_type>>
+            // where
+            //     T: IntoIterator<Item = M>,
+            //     M: Into<#model_name>,
             #insert_many_toks
 
             // pub async fn delete<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<()>
+            // where
+            //     M: Into<#model_name>,
             #delete_toks
 
             // pub async fn update<SM, DM>(src: SM, dst: DM, conn: &rorm::pool::Connection) -> rorm::error::Result<()>
+            // where
+            //     SM: Into<#model_name>,
+            //     DM: Into<#model_name>,
             #update_toks
 
             // pub async fn find<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Self>
+            // where
+            //    M: Into<#model_name>,
             #find_toks
 
             // pub async fn find_many<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<Self>>
+            // where
+            //    M: Into<#model_name>,
             #find_many_toks
 
             /*
@@ -68,6 +80,8 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
              */
 
             // fn gen_find_sql_and_params<M>(model: M) -> rorm::error::Result<(String, Vec<rorm::pool::Value>)>
+            // where
+            //    M: Into<#model_name>,
             #gen_find_sql_and_params_toks
         }
     }
