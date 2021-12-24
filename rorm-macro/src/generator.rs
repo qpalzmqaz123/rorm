@@ -65,12 +65,12 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
             //     DM: Into<#model_name>,
             #update_toks
 
-            // pub async fn find<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Self>
+            // pub async fn find<M>(model: M, option: Option<rorm::FindOption>, conn: &rorm::pool::Connection) -> rorm::error::Result<Self>
             // where
             //    M: Into<#model_name>,
             #find_toks
 
-            // pub async fn find_many<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<Self>>
+            // pub async fn find_many<M>(model: M, option: Option<rorm::FindOption>, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<Self>>
             // where
             //    M: Into<#model_name>,
             #find_many_toks
@@ -79,7 +79,7 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
              * Private methods
              */
 
-            // fn gen_find_sql_and_params<M>(model: M) -> rorm::error::Result<(String, Vec<rorm::pool::Value>)>
+            // fn gen_find_sql_and_params<M>(model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<(String, Vec<rorm::pool::Value>)>
             // where
             //    M: Into<#model_name>,
             #gen_find_sql_and_params_toks
@@ -270,7 +270,7 @@ fn gen_impl_table_insert(info: &TableInfo) -> TokenStream {
 
             let model: #model_name = model.into();
             let sql = rorm::query::QueryBuilder::insert(Self::TABLE_NAME)
-                .columns(&Self::COLUMNS)
+                .columns(Self::COLUMNS)
                 .values([#(#values_toks),*])
                 .build()?;
             let key = conn
@@ -316,7 +316,7 @@ fn gen_impl_table_insert_many(info: &TableInfo) -> TokenStream {
                 })
                 .collect::<Vec<Vec<rorm::pool::Value>>>();
             let sql = rorm::query::QueryBuilder::insert(Self::TABLE_NAME)
-                .columns(&Self::COLUMNS)
+                .columns(Self::COLUMNS)
                 .values([#(#values_toks),*])
                 .build()?;
             let keys = conn.execute_many(&sql, params).await?;
@@ -394,11 +394,11 @@ fn gen_impl_table_find(info: &TableInfo) -> TokenStream {
     let model_name = str_to_toks(&info.model_name);
 
     quote! {
-        pub async fn find<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Self>
+        pub async fn find<M>(model: M, option: Option<rorm::FindOption>, conn: &rorm::pool::Connection) -> rorm::error::Result<Self>
         where
             M: Into<#model_name>,
         {
-            let (sql, params) = Self::gen_find_sql_and_params(model)?;
+            let (sql, params) = Self::gen_find_sql_and_params(model, option)?;
 
             // Query
             let res = conn
@@ -414,11 +414,11 @@ fn gen_impl_table_find_many(info: &TableInfo) -> TokenStream {
     let model_name = str_to_toks(&info.model_name);
 
     quote! {
-        pub async fn find_many<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<Self>>
+        pub async fn find_many<M>(model: M, option: Option<rorm::FindOption>, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<Self>>
         where
             M: Into<#model_name>,
         {
-            let (sql, params) = Self::gen_find_sql_and_params(model)?;
+            let (sql, params) = Self::gen_find_sql_and_params(model, option)?;
 
             // Query
             let res_list = conn
@@ -434,7 +434,7 @@ fn gen_impl_table_gen_find_sql_and_params(info: &TableInfo) -> TokenStream {
     let model_name = str_to_toks(&info.model_name);
 
     quote! {
-        fn gen_find_sql_and_params<M>(model: M) -> rorm::error::Result<(String, Vec<rorm::pool::Value>)>
+        fn gen_find_sql_and_params<M>(model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<(String, Vec<rorm::pool::Value>)>
         where
             M: Into<#model_name>,
         {
@@ -443,9 +443,17 @@ fn gen_impl_table_gen_find_sql_and_params(info: &TableInfo) -> TokenStream {
             let (cond, params) = model.gen_where_and_params();
 
             // Set builder
-            sql_builder.columns(&Self::COLUMNS);
+            sql_builder.columns(Self::COLUMNS);
             if let Some(cond) = cond {
                 sql_builder.where_cond(cond);
+            }
+
+            // Set option
+            if let Some(option) = option {
+                // TODO: Check model condition
+
+                // Update builder
+                option.update_sql_builder(&mut sql_builder);
             }
 
             // Build sql
