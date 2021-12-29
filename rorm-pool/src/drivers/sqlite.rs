@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use r2d2_sqlite::{rusqlite, SqliteConnectionManager};
 use rorm_error::Result;
@@ -39,7 +39,7 @@ impl Builder {
             .build(self.mgr)
             .map_err(|e| rorm_error::connection!("SQLite connection error: {}", e))?;
 
-        Ok(Connection::new(Box::new(SqlitePoolProxy::new(pool))))
+        Ok(Connection::new(Arc::new(SqlitePoolProxy::new(pool))))
     }
 }
 

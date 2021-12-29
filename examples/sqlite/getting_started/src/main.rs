@@ -1,4 +1,4 @@
-use rorm::Entity;
+use rorm::{Entity, Repository};
 
 #[derive(Debug, PartialEq, Eq, Entity)]
 #[rorm(table_name = "user")]
@@ -14,14 +14,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     env_logger::init();
 
-    let conn = rorm::pool::sqlite::Builder::memory().connect()?;
+    let connection = rorm::pool::sqlite::Builder::memory().connect()?;
+    let user_repo = Repository::<User>::new(connection.clone());
 
     // Create table
-    conn.execute_one(
-        "CREATE TABLE user (id INTEGER PRIMARY KEY AUTOINCREMENT, name VARCHAR NOT NULL)",
-        vec![],
-    )
-    .await?;
+    connection
+        .execute_one(
+            "CREATE TABLE user (id INTEGER PRIMARY KEY AUTOINCREMENT, name VARCHAR NOT NULL)",
+            vec![],
+        )
+        .await?;
 
     // Check table name
     assert_eq!("user", User::TABLE_NAME);
@@ -31,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         name: Set("bob".into()),
         ..Default::default()
     };
-    let bob_id = User::insert(&conn, bob).await?;
+    let bob_id = user_repo.insert(bob).await?;
     assert_eq!(bob_id, 1);
 
     // Insert alice
@@ -39,11 +41,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         name: Set("alice".into()),
         ..Default::default()
     };
-    let alice_id = User::insert(&conn, alice).await?;
+    let alice_id = user_repo.insert(alice).await?;
     assert_eq!(alice_id, 2);
 
     // Find bob by id
-    let bob = User::find(&conn, 1, None).await?;
+    let bob = user_repo.find(1, None).await?;
     assert_eq!(
         bob,
         User {
@@ -53,15 +55,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Find alice by name
-    let alice = User::find(
-        &conn,
-        UserModel {
-            name: Set("alice".into()),
-            ..Default::default()
-        },
-        None,
-    )
-    .await?;
+    let alice = user_repo
+        .find(
+            UserModel {
+                name: Set("alice".into()),
+                ..Default::default()
+            },
+            None,
+        )
+        .await?;
     assert_eq!(
         alice,
         User {
@@ -71,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Find list
-    let list = User::find_many(&conn, UserModel::default(), None).await?;
+    let list = user_repo.find_many(UserModel::default(), None).await?;
     assert_eq!(
         list,
         vec![
@@ -87,8 +89,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Delete bob
-    User::delete(&conn, 1).await?;
-    let list = User::find_many(&conn, UserModel::default(), None).await?;
+    user_repo.delete(1).await?;
+    let list = user_repo.find_many(UserModel::default(), None).await?;
     assert_eq!(
         list,
         vec![User {
@@ -98,16 +100,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Update alice
-    User::update(
-        &conn,
-        2,
-        UserModel {
-            name: Set("alex".into()),
-            ..Default::default()
-        },
-    )
-    .await?;
-    let list = User::find_many(&conn, UserModel::default(), None).await?;
+    user_repo
+        .update(
+            2,
+            UserModel {
+                name: Set("alex".into()),
+                ..Default::default()
+            },
+        )
+        .await?;
+    let list = user_repo.find_many(UserModel::default(), None).await?;
     assert_eq!(
         list,
         vec![User {
@@ -125,8 +127,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         name: Set("lee".into()),
         ..Default::default()
     };
-    User::insert_many(&conn, [carl, lee]).await?;
-    let list = User::find_many(&conn, UserModel::default(), None).await?;
+    user_repo.insert_many([carl, lee]).await?;
+    let list = user_repo.find_many(UserModel::default(), None).await?;
     assert_eq!(
         list,
         vec![
@@ -146,16 +148,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Find order by id desc limit 2
-    let list = User::find_many(
-        &conn,
-        UserModel::default(),
-        Some(FindOption {
-            orders: vec![("id".into(), false)],
-            limit: Some((2, 0)),
-            ..Default::default()
-        }),
-    )
-    .await?;
+    let list = user_repo
+        .find_many(
+            UserModel::default(),
+            Some(FindOption {
+                orders: vec![("id".into(), false)],
+                limit: Some((2, 0)),
+                ..Default::default()
+            }),
+        )
+        .await?;
     assert_eq!(
         list,
         vec![

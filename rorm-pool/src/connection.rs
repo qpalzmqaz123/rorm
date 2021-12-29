@@ -1,11 +1,14 @@
+use std::sync::Arc;
+
 use crate::{Driver, Result, Row, Value};
 
+#[derive(Clone)]
 pub struct Connection {
-    driver: Box<dyn Driver>,
+    driver: Arc<dyn Driver>,
 }
 
 impl Connection {
-    pub fn new(driver: Box<dyn Driver>) -> Self {
+    pub fn new(driver: Arc<dyn Driver>) -> Self {
         Self { driver }
     }
 
