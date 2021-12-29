@@ -11,6 +11,8 @@ rorm-pool = { path = "../rorm-pool" }
 rorm-query = { path = "../rorm-query" }
 rorm-error= { path = "../rorm-error" }
 
+async-trait = { version = "0.1", default-features = false }
+
 [features]
 default = []
 sqlite = ["rorm-pool/sqlite"]

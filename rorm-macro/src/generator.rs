@@ -17,7 +17,9 @@ pub fn generate(info: TableInfo) -> TokenStream {
 }
 
 fn gen_impl_table(info: &TableInfo) -> TokenStream {
+    let primary_key_type = gen_primary_key_type_toks(&info.columns, &info.primary_keys);
     let table_name_str = &info.table_name;
+    let model_name = str_to_toks(&info.model_name);
     let struct_name = str_to_toks(&info.struct_name);
     let columns: Vec<&String> = info.columns.iter().map(|v| &v.name).collect();
     let from_row_toks = gen_impl_table_from_row(&info);
@@ -30,55 +32,52 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
     let gen_find_sql_and_params_toks = gen_impl_table_gen_find_sql_and_params(&info);
 
     quote! {
-        impl #struct_name {
-            /*
-             * Const fields
-             */
+        #[rorm::async_trait]
+        impl rorm::Entity for #struct_name {
+            type PrimaryKey = #primary_key_type;
+            type Model = #model_name;
 
-            pub const TABLE_NAME: &'static str = #table_name_str;
-            pub const COLUMNS: &'static [&'static str] = &[#(#columns),*];
+            const TABLE_NAME: &'static str = #table_name_str;
 
-            /*
-             * Public methods
-             */
+            const COLUMNS: &'static [&'static str] = &[#(#columns),*];
 
-            // pub fn from_row(row: rorm::pool::Row) -> rorm::error::Result<Self>
+            // fn from_row(row: rorm::pool::Row) -> rorm::error::Result<Self>
             #from_row_toks
 
-            // pub async fn insert<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<#ty>
+            // async fn insert<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<#ty>
+            // where
+            //     M: Into<#model_name>,
             #insert_toks
 
-            // pub async fn insert_many<T, M>(conn: &rorm::pool::Connection, models: T) -> rorm::error::Result<Vec<#primary_key_type>>
+            // async fn insert_many<T, M>(conn: &rorm::pool::Connection, models: T) -> rorm::error::Result<Vec<#primary_key_type>>
             // where
             //     T: IntoIterator<Item = M>,
             //     M: Into<#model_name>,
             #insert_many_toks
 
-            // pub async fn delete<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<()>
+            // async fn delete<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<()>
             // where
             //     M: Into<#model_name>,
             #delete_toks
 
-            // pub async fn update<SM, DM>(conn: &rorm::pool::Connection, src: SM, dst: DM) -> rorm::error::Result<()>
+            // async fn update<SM, DM>(conn: &rorm::pool::Connection, src: SM, dst: DM) -> rorm::error::Result<()>
             // where
             //     SM: Into<#model_name>,
             //     DM: Into<#model_name>,
             #update_toks
 
-            // pub async fn find<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Self>
+            // async fn find<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Self>
             // where
             //    M: Into<#model_name>,
             #find_toks
 
-            // pub async fn find_many<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Vec<Self>>
+            // async fn find_many<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Vec<Self>>
             // where
             //    M: Into<#model_name>,
             #find_many_toks
+        }
 
-            /*
-             * Private methods
-             */
-
+        impl #struct_name {
             // fn gen_find_sql_and_params<M>(model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<(String, Vec<rorm::pool::Value>)>
             // where
             //    M: Into<#model_name>,
@@ -236,7 +235,7 @@ fn gen_impl_table_from_row(info: &TableInfo) -> TokenStream {
         .collect();
 
     quote! {
-        pub fn from_row(row: rorm::pool::Row) -> rorm::error::Result<Self> {
+        fn from_row(row: rorm::pool::Row) -> rorm::error::Result<Self> {
             Ok(Self {
                 #(#field_toks)*
             })
@@ -262,9 +261,9 @@ fn gen_impl_table_insert(info: &TableInfo) -> TokenStream {
         .collect::<Vec<_>>();
 
     quote! {
-        pub async fn insert<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<#primary_key_type>
+        async fn insert<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<#primary_key_type>
         where
-            M: Into<#model_name>,
+            M: Into<#model_name> + Send,
         {
             use rorm::pool::ToValue;
 
@@ -301,10 +300,10 @@ fn gen_impl_table_insert_many(info: &TableInfo) -> TokenStream {
         .collect::<Vec<_>>();
 
     quote! {
-        pub async fn insert_many<T, M>(conn: &rorm::pool::Connection, models: T) -> rorm::error::Result<Vec<#primary_key_type>>
+        async fn insert_many<T, M>(conn: &rorm::pool::Connection, models: T) -> rorm::error::Result<Vec<#primary_key_type>>
         where
-            T: IntoIterator<Item = M>,
-            M: Into<#model_name>,
+            T: IntoIterator<Item = M> + Send,
+            M: Into<#model_name> + Send,
         {
             use rorm::pool::ToValue;
 
@@ -330,9 +329,9 @@ fn gen_impl_table_delete(info: &TableInfo) -> TokenStream {
     let model_name = str_to_toks(&info.model_name);
 
     quote! {
-        pub async fn delete<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<()>
+        async fn delete<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<()>
         where
-            M: Into<#model_name>,
+            M: Into<#model_name> + Send,
         {
             let model: #model_name = model.into();
             let mut sql_builder = rorm::query::QueryBuilder::delete(Self::TABLE_NAME);
@@ -358,10 +357,10 @@ fn gen_impl_table_update(info: &TableInfo) -> TokenStream {
     let model_name = str_to_toks(&info.model_name);
 
     quote! {
-        pub async fn update<SM, DM>(conn: &rorm::pool::Connection, src: SM, dst: DM) -> rorm::error::Result<()>
+        async fn update<SM, DM>(conn: &rorm::pool::Connection, src: SM, dst: DM) -> rorm::error::Result<()>
         where
-            SM: Into<#model_name>,
-            DM: Into<#model_name>,
+            SM: Into<#model_name> + Send,
+            DM: Into<#model_name> + Send,
         {
             let src: #model_name = src.into();
             let dst: #model_name = dst.into();
@@ -394,9 +393,9 @@ fn gen_impl_table_find(info: &TableInfo) -> TokenStream {
     let model_name = str_to_toks(&info.model_name);
 
     quote! {
-        pub async fn find<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Self>
+        async fn find<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Self>
         where
-            M: Into<#model_name>,
+            M: Into<#model_name> + Send,
         {
             let (sql, params) = Self::gen_find_sql_and_params(model, option)?;
 
@@ -414,9 +413,9 @@ fn gen_impl_table_find_many(info: &TableInfo) -> TokenStream {
     let model_name = str_to_toks(&info.model_name);
 
     quote! {
-        pub async fn find_many<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Vec<Self>>
+        async fn find_many<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Vec<Self>>
         where
-            M: Into<#model_name>,
+            M: Into<#model_name> + Send,
         {
             let (sql, params) = Self::gen_find_sql_and_params(model, option)?;
 

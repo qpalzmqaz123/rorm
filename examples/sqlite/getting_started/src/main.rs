@@ -1,4 +1,6 @@
-#[derive(Debug, rorm::Entity, PartialEq, Eq)]
+use rorm::Entity;
+
+#[derive(Debug, PartialEq, Eq, Entity)]
 #[rorm(table_name = "user")]
 struct User {
     #[rorm(primary_key)]
