@@ -45,32 +45,32 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
             // pub fn from_row(row: rorm::pool::Row) -> rorm::error::Result<Self>
             #from_row_toks
 
-            // pub async fn insert<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<#ty>
+            // pub async fn insert<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<#ty>
             #insert_toks
 
-            // pub async fn insert_many<T, M>(models: T, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<#primary_key_type>>
+            // pub async fn insert_many<T, M>(conn: &rorm::pool::Connection, models: T) -> rorm::error::Result<Vec<#primary_key_type>>
             // where
             //     T: IntoIterator<Item = M>,
             //     M: Into<#model_name>,
             #insert_many_toks
 
-            // pub async fn delete<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<()>
+            // pub async fn delete<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<()>
             // where
             //     M: Into<#model_name>,
             #delete_toks
 
-            // pub async fn update<SM, DM>(src: SM, dst: DM, conn: &rorm::pool::Connection) -> rorm::error::Result<()>
+            // pub async fn update<SM, DM>(conn: &rorm::pool::Connection, src: SM, dst: DM) -> rorm::error::Result<()>
             // where
             //     SM: Into<#model_name>,
             //     DM: Into<#model_name>,
             #update_toks
 
-            // pub async fn find<M>(model: M, option: Option<rorm::FindOption>, conn: &rorm::pool::Connection) -> rorm::error::Result<Self>
+            // pub async fn find<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Self>
             // where
             //    M: Into<#model_name>,
             #find_toks
 
-            // pub async fn find_many<M>(model: M, option: Option<rorm::FindOption>, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<Self>>
+            // pub async fn find_many<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Vec<Self>>
             // where
             //    M: Into<#model_name>,
             #find_many_toks
@@ -262,7 +262,7 @@ fn gen_impl_table_insert(info: &TableInfo) -> TokenStream {
         .collect::<Vec<_>>();
 
     quote! {
-        pub async fn insert<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<#primary_key_type>
+        pub async fn insert<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<#primary_key_type>
         where
             M: Into<#model_name>,
         {
@@ -301,7 +301,7 @@ fn gen_impl_table_insert_many(info: &TableInfo) -> TokenStream {
         .collect::<Vec<_>>();
 
     quote! {
-        pub async fn insert_many<T, M>(models: T, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<#primary_key_type>>
+        pub async fn insert_many<T, M>(conn: &rorm::pool::Connection, models: T) -> rorm::error::Result<Vec<#primary_key_type>>
         where
             T: IntoIterator<Item = M>,
             M: Into<#model_name>,
@@ -330,7 +330,7 @@ fn gen_impl_table_delete(info: &TableInfo) -> TokenStream {
     let model_name = str_to_toks(&info.model_name);
 
     quote! {
-        pub async fn delete<M>(model: M, conn: &rorm::pool::Connection) -> rorm::error::Result<()>
+        pub async fn delete<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<()>
         where
             M: Into<#model_name>,
         {
@@ -358,7 +358,7 @@ fn gen_impl_table_update(info: &TableInfo) -> TokenStream {
     let model_name = str_to_toks(&info.model_name);
 
     quote! {
-        pub async fn update<SM, DM>(src: SM, dst: DM, conn: &rorm::pool::Connection) -> rorm::error::Result<()>
+        pub async fn update<SM, DM>(conn: &rorm::pool::Connection, src: SM, dst: DM) -> rorm::error::Result<()>
         where
             SM: Into<#model_name>,
             DM: Into<#model_name>,
@@ -394,7 +394,7 @@ fn gen_impl_table_find(info: &TableInfo) -> TokenStream {
     let model_name = str_to_toks(&info.model_name);
 
     quote! {
-        pub async fn find<M>(model: M, option: Option<rorm::FindOption>, conn: &rorm::pool::Connection) -> rorm::error::Result<Self>
+        pub async fn find<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Self>
         where
             M: Into<#model_name>,
         {
@@ -414,7 +414,7 @@ fn gen_impl_table_find_many(info: &TableInfo) -> TokenStream {
     let model_name = str_to_toks(&info.model_name);
 
     quote! {
-        pub async fn find_many<M>(model: M, option: Option<rorm::FindOption>, conn: &rorm::pool::Connection) -> rorm::error::Result<Vec<Self>>
+        pub async fn find_many<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Vec<Self>>
         where
             M: Into<#model_name>,
         {

@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         name: Set("bob".into()),
         ..Default::default()
     };
-    let bob_id = User::insert(bob, &conn).await?;
+    let bob_id = User::insert(&conn, bob).await?;
     assert_eq!(bob_id, 1);
 
     // Insert alice
@@ -37,11 +37,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         name: Set("alice".into()),
         ..Default::default()
     };
-    let alice_id = User::insert(alice, &conn).await?;
+    let alice_id = User::insert(&conn, alice).await?;
     assert_eq!(alice_id, 2);
 
     // Find bob by id
-    let bob = User::find(1, None, &conn).await?;
+    let bob = User::find(&conn, 1, None).await?;
     assert_eq!(
         bob,
         User {
@@ -52,12 +52,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Find alice by name
     let alice = User::find(
+        &conn,
         UserModel {
             name: Set("alice".into()),
             ..Default::default()
         },
         None,
-        &conn,
     )
     .await?;
     assert_eq!(
@@ -69,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Find list
-    let list = User::find_many(UserModel::default(), None, &conn).await?;
+    let list = User::find_many(&conn, UserModel::default(), None).await?;
     assert_eq!(
         list,
         vec![
@@ -85,8 +85,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Delete bob
-    User::delete(1, &conn).await?;
-    let list = User::find_many(UserModel::default(), None, &conn).await?;
+    User::delete(&conn, 1).await?;
+    let list = User::find_many(&conn, UserModel::default(), None).await?;
     assert_eq!(
         list,
         vec![User {
@@ -97,15 +97,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Update alice
     User::update(
+        &conn,
         2,
         UserModel {
             name: Set("alex".into()),
             ..Default::default()
         },
-        &conn,
     )
     .await?;
-    let list = User::find_many(UserModel::default(), None, &conn).await?;
+    let list = User::find_many(&conn, UserModel::default(), None).await?;
     assert_eq!(
         list,
         vec![User {
@@ -123,8 +123,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         name: Set("lee".into()),
         ..Default::default()
     };
-    User::insert_many([carl, lee], &conn).await?;
-    let list = User::find_many(UserModel::default(), None, &conn).await?;
+    User::insert_many(&conn, [carl, lee]).await?;
+    let list = User::find_many(&conn, UserModel::default(), None).await?;
     assert_eq!(
         list,
         vec![
@@ -145,13 +145,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Find order by id desc limit 2
     let list = User::find_many(
+        &conn,
         UserModel::default(),
         Some(FindOption {
             orders: vec![("id".into(), false)],
             limit: Some((2, 0)),
             ..Default::default()
         }),
-        &conn,
     )
     .await?;
     assert_eq!(
