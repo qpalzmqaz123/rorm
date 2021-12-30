@@ -545,6 +545,8 @@ fn gen_primary_key_type_toks(columns: &[ColumnInfo], primary_keys: &[String]) ->
 }
 
 fn gen_column_type_and_is_not_null(col: &ColumnInfo) -> (TokenStream, bool) {
+    let length = col.length.unwrap_or(65535);
+
     match col.ty.replace(" ", "").as_str() {
         "bool" => (quote! { rorm::ColumnType::Bool }, true),
         "i8" => (quote! { rorm::ColumnType::I8 }, true),
@@ -557,8 +559,8 @@ fn gen_column_type_and_is_not_null(col: &ColumnInfo) -> (TokenStream, bool) {
         "u64" => (quote! { rorm::ColumnType::U64 }, true),
         "f32" => (quote! { rorm::ColumnType::F32 }, true),
         "f64" => (quote! { rorm::ColumnType::F64 }, true),
-        "String" => (quote! { rorm::ColumnType::Str(65536) }, true),
-        "Vec<u8>" => (quote! { rorm::ColumnType::Bytes(65536) }, true),
+        "String" => (quote! { rorm::ColumnType::Str(#length) }, true),
+        "Vec<u8>" => (quote! { rorm::ColumnType::Bytes(#length) }, true),
         "Option<bool>" => (quote! { rorm::ColumnType::Bool }, false),
         "Option<i8>" => (quote! { rorm::ColumnType::I8 }, false),
         "Option<u8>" => (quote! { rorm::ColumnType::U8 }, false),
@@ -570,8 +572,8 @@ fn gen_column_type_and_is_not_null(col: &ColumnInfo) -> (TokenStream, bool) {
         "Option<u64>" => (quote! { rorm::ColumnType::U64 }, false),
         "Option<f32>" => (quote! { rorm::ColumnType::F32 }, false),
         "Option<f64>" => (quote! { rorm::ColumnType::F64 }, false),
-        "Option<String>" => (quote! { rorm::ColumnType::Str(65536) }, false),
-        "Option<Vec<u8>>" => (quote! { rorm::ColumnType::Bytes(65536) }, false),
+        "Option<String>" => (quote! { rorm::ColumnType::Str(#length) }, false),
+        "Option<Vec<u8>>" => (quote! { rorm::ColumnType::Bytes(#length) }, false),
         _ => panic!("Unsupported column type '{}', name: '{}'", col.ty, col.name),
     }
 }

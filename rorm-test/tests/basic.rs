@@ -5,6 +5,7 @@ use rorm::Entity;
 struct User {
     #[rorm(primary_key, auto_increment)]
     id: u32,
+    #[rorm(length = 20)]
     name: String,
     email: Option<String>,
 }
@@ -26,7 +27,7 @@ async fn test_info() {
                 },
                 rorm::ColumnInfo {
                     name: "name",
-                    ty: rorm::ColumnType::Str(65536),
+                    ty: rorm::ColumnType::Str(20),
                     is_primary_key: false,
                     is_not_null: true,
                     is_auto_increment: false,
@@ -34,7 +35,7 @@ async fn test_info() {
                 },
                 rorm::ColumnInfo {
                     name: "email",
-                    ty: rorm::ColumnType::Str(65536),
+                    ty: rorm::ColumnType::Str(65535),
                     is_primary_key: false,
                     is_not_null: false,
                     is_auto_increment: false,

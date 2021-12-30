@@ -6,6 +6,7 @@ use syn::{Attribute, Data, DataStruct, DeriveInput, Expr, Lit, Meta};
 pub struct ColumnInfo {
     pub name: String,
     pub ty: String,
+    pub length: Option<usize>,
     pub is_auto_increment: bool,
 }
 
@@ -22,6 +23,7 @@ pub struct TableInfo {
 enum AttrInfo {
     TableName(String),
     PrimaryKey,
+    Length(usize),
     AutoIncrement,
 }
 
@@ -77,6 +79,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
             abort!(field, "Field must be named");
         };
         let ty = field.ty.to_token_stream().to_string();
+        let mut length = None;
         let mut is_auto_increment = false;
 
         // Parse attr
@@ -92,6 +95,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
             for attr_info in attr_infos {
                 match attr_info {
                     AttrInfo::PrimaryKey => primary_keys.push(name.clone()),
+                    AttrInfo::Length(len) => length = Some(len),
                     AttrInfo::AutoIncrement => is_auto_increment = true,
                     _ => abort!(attr, "Invalid column attr field: {:?}", attr_info),
                 }
@@ -102,6 +106,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
         columns.push(ColumnInfo {
             name,
             ty,
+            length,
             is_auto_increment,
         });
     }
@@ -112,8 +117,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
 fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
     const PARSE_ERR_STR: &'static str =
         "Parse to metalist failed, syntax is #[rorm(field [= value])]";
-    const ARG_HELP: &'static str =
-        r#"Syntax is rorm(primary_key | auto_increment | table_name = "NAME", ...)"#;
+    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | table_name = "NAME" | length = NUMBER, ...)"#;
 
     let mut attrs = Vec::<AttrInfo>::new();
 
@@ -153,6 +157,9 @@ fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
                     // Parse table_name = "NAME"
                     "table_name" => attrs.push(AttrInfo::TableName(get_str(&assign.right))),
 
+                    // Parse length = NUMBER
+                    "length" => attrs.push(AttrInfo::Length(get_num(&assign.right))),
+
                     // Error
                     _ => abort!(expr, "Syntax error while decode assign"; help = ARG_HELP),
                 }
@@ -173,4 +180,17 @@ fn get_str(expr: &Expr) -> String {
     }
 
     abort!(expr, "Expect string")
+}
+
+/// Get number from expr
+fn get_num(expr: &Expr) -> usize {
+    if let Expr::Lit(lit) = expr {
+        if let Lit::Int(n) = &lit.lit {
+            if let Ok(n) = n.base10_parse::<usize>() {
+                return n;
+            }
+        }
+    }
+
+    abort!(expr, "Expect integer")
 }
