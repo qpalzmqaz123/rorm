@@ -1,6 +1,6 @@
 use crate::pool::{ToValue, Value};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ModelColumn<T> {
     NotSet,
     Set(T),
