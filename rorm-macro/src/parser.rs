@@ -4,8 +4,9 @@ use syn::{Attribute, Data, DataStruct, DeriveInput, Expr, Lit, Meta};
 
 #[derive(Debug, Clone)]
 pub struct ColumnInfo {
-    pub name: String,
-    pub ty: String,
+    pub name: String,   // Column rust name
+    pub ty: String,     // Column rust type
+    pub sql_ty: String, // User specific type, use for generate sql type, default it's same with ty
     pub length: Option<usize>,
     pub is_auto_increment: bool,
 }
@@ -25,6 +26,7 @@ enum AttrInfo {
     PrimaryKey,
     Length(usize),
     AutoIncrement,
+    Type(String),
 }
 
 pub fn parse(input: DeriveInput) -> TableInfo {
@@ -79,6 +81,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
             abort!(field, "Field must be named");
         };
         let ty = field.ty.to_token_stream().to_string();
+        let mut sql_ty = ty.clone();
         let mut length = None;
         let mut is_auto_increment = false;
 
@@ -97,6 +100,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
                     AttrInfo::PrimaryKey => primary_keys.push(name.clone()),
                     AttrInfo::Length(len) => length = Some(len),
                     AttrInfo::AutoIncrement => is_auto_increment = true,
+                    AttrInfo::Type(ty) => sql_ty = ty,
                     _ => abort!(attr, "Invalid column attr field: {:?}", attr_info),
                 }
             }
@@ -106,6 +110,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
         columns.push(ColumnInfo {
             name,
             ty,
+            sql_ty,
             length,
             is_auto_increment,
         });
@@ -117,7 +122,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
 fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
     const PARSE_ERR_STR: &'static str =
         "Parse to metalist failed, syntax is #[rorm(field [= value])]";
-    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | table_name = "NAME" | length = NUMBER, ...)"#;
+    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | table_name = "NAME" | sql_type = RUST_TYPE | length = NUMBER, ...)"#;
 
     let mut attrs = Vec::<AttrInfo>::new();
 
@@ -159,6 +164,9 @@ fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
 
                     // Parse length = NUMBER
                     "length" => attrs.push(AttrInfo::Length(get_num(&assign.right))),
+
+                    // Parse type = RUST_TYPE
+                    "sql_type" => attrs.push(AttrInfo::Type(get_str(&assign.right))),
 
                     // Error
                     _ => abort!(expr, "Syntax error while decode assign"; help = ARG_HELP),

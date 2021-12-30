@@ -547,7 +547,7 @@ fn gen_primary_key_type_toks(columns: &[ColumnInfo], primary_keys: &[String]) ->
 fn gen_column_type_and_is_not_null(col: &ColumnInfo) -> (TokenStream, bool) {
     let length = col.length.unwrap_or(65535);
 
-    match col.ty.replace(" ", "").as_str() {
+    match col.sql_ty.replace(" ", "").as_str() {
         "bool" => (quote! { rorm::ColumnType::Bool }, true),
         "i8" => (quote! { rorm::ColumnType::I8 }, true),
         "u8" => (quote! { rorm::ColumnType::U8 }, true),
