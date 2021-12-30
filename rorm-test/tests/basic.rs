@@ -1,8 +1,9 @@
 use rorm::Entity;
 
 #[derive(Debug, Entity)]
+#[rorm(table_name = "user")]
 struct User {
-    #[rorm(primary_key)]
+    #[rorm(primary_key, auto_increment)]
     id: u32,
     name: String,
     email: Option<String>,
@@ -13,14 +14,14 @@ async fn test_info() {
     assert_eq!(
         User::INFO,
         rorm::TableInfo {
-            name: "User",
+            name: "user",
             columns: &[
                 rorm::ColumnInfo {
                     name: "id",
                     ty: rorm::ColumnType::U32,
                     is_primary_key: true,
                     is_not_null: true,
-                    is_auto_increment: false,
+                    is_auto_increment: true,
                     default: None,
                 },
                 rorm::ColumnInfo {
