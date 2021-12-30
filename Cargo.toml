@@ -5,6 +5,7 @@ members = [
     "rorm-macro",
     "rorm-pool",
     "rorm-query",
+    "rorm-test",
     "examples/sqlite/getting_started",
     "examples/pool/sqlite",
 ]

@@ -22,6 +22,7 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
     let model_name = str_to_toks(&info.model_name);
     let struct_name = str_to_toks(&info.struct_name);
     let columns: Vec<&String> = info.columns.iter().map(|v| &v.name).collect();
+    let info_toks = gen_table_info(&info);
     let from_row_toks = gen_impl_table_from_row(&info);
     let insert_toks = gen_impl_table_insert(&info);
     let insert_many_toks = gen_impl_table_insert_many(&info);
@@ -40,6 +41,8 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
             const TABLE_NAME: &'static str = #table_name_str;
 
             const COLUMNS: &'static [&'static str] = &[#(#columns),*];
+
+            const INFO: rorm::TableInfo = #info_toks;
 
             // fn from_row(row: rorm::pool::Row) -> rorm::error::Result<Self>
             #from_row_toks
@@ -217,6 +220,40 @@ fn gen_model(info: &TableInfo) -> TokenStream {
 
                 (sets, params)
             }
+        }
+    }
+}
+
+fn gen_table_info(info: &TableInfo) -> TokenStream {
+    let table_name_str = &info.table_name;
+    let columns_toks = info
+        .columns
+        .iter()
+        .map(|col| {
+            let name = &col.name;
+            let (ty_toks, is_not_null) = gen_column_type_and_is_not_null(&col);
+            let is_primary_key = info.primary_keys.contains(name);
+            let is_auto_increment = false;
+            let default = quote! { None };
+
+            quote! {
+                rorm::ColumnInfo {
+                    name: #name,
+                    ty: #ty_toks,
+                    is_primary_key: #is_primary_key,
+                    is_not_null: #is_not_null,
+                    is_auto_increment: #is_auto_increment,
+                    default: #default,
+                }
+            }
+        })
+        .collect::<Vec<_>>();
+
+    quote! {
+        rorm::TableInfo {
+            name: #table_name_str,
+            columns: &[#(#columns_toks),*],
+            indexes: &[],
         }
     }
 }
@@ -504,5 +541,37 @@ fn gen_primary_key_type_toks(columns: &[ColumnInfo], primary_keys: &[String]) ->
                 .collect::<Vec<_>>();
             quote! {(#(#types),*)}
         }
+    }
+}
+
+fn gen_column_type_and_is_not_null(col: &ColumnInfo) -> (TokenStream, bool) {
+    match col.ty.replace(" ", "").as_str() {
+        "bool" => (quote! { rorm::ColumnType::Bool }, true),
+        "i8" => (quote! { rorm::ColumnType::I8 }, true),
+        "u8" => (quote! { rorm::ColumnType::U8 }, true),
+        "i16" => (quote! { rorm::ColumnType::I16 }, true),
+        "u16" => (quote! { rorm::ColumnType::U16 }, true),
+        "i32" => (quote! { rorm::ColumnType::I32 }, true),
+        "u32" => (quote! { rorm::ColumnType::U32 }, true),
+        "i64" => (quote! { rorm::ColumnType::I64 }, true),
+        "u64" => (quote! { rorm::ColumnType::U64 }, true),
+        "f32" => (quote! { rorm::ColumnType::F32 }, true),
+        "f64" => (quote! { rorm::ColumnType::F64 }, true),
+        "String" => (quote! { rorm::ColumnType::Str(65536) }, true),
+        "Vec<u8>" => (quote! { rorm::ColumnType::Bytes(65536) }, true),
+        "Option<bool>" => (quote! { rorm::ColumnType::Bool }, false),
+        "Option<i8>" => (quote! { rorm::ColumnType::I8 }, false),
+        "Option<u8>" => (quote! { rorm::ColumnType::U8 }, false),
+        "Option<i16>" => (quote! { rorm::ColumnType::I16 }, false),
+        "Option<u16>" => (quote! { rorm::ColumnType::U16 }, false),
+        "Option<i32>" => (quote! { rorm::ColumnType::I32 }, false),
+        "Option<u32>" => (quote! { rorm::ColumnType::U32 }, false),
+        "Option<i64>" => (quote! { rorm::ColumnType::I64 }, false),
+        "Option<u64>" => (quote! { rorm::ColumnType::U64 }, false),
+        "Option<f32>" => (quote! { rorm::ColumnType::F32 }, false),
+        "Option<f64>" => (quote! { rorm::ColumnType::F64 }, false),
+        "Option<String>" => (quote! { rorm::ColumnType::Str(65536) }, false),
+        "Option<Vec<u8>>" => (quote! { rorm::ColumnType::Bytes(65536) }, false),
+        _ => panic!("Unsupported column type '{}', name: '{}'", col.ty, col.name),
     }
 }

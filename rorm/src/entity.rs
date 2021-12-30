@@ -1,4 +1,4 @@
-use crate::{error::Result, pool::Connection, pool::Row, FindOption};
+use crate::{error::Result, pool::Connection, pool::Row, FindOption, TableInfo};
 
 #[async_trait::async_trait]
 pub trait Entity: Sized {
@@ -10,6 +10,9 @@ pub trait Entity: Sized {
 
     /// Column names
     const COLUMNS: &'static [&'static str];
+
+    /// Table info
+    const INFO: TableInfo;
 
     /// Convert database row to self
     fn from_row(row: Row) -> Result<Self>;
