@@ -286,7 +286,7 @@ fn gen_create_table(info: &TableInfo) -> String {
                 },
                 not_null = if col.is_not_null { "NOT NULL" } else { "" },
                 default = col.default.unwrap_or(""),
-                unique = "",
+                unique = if col.is_unique { "UNIQUE" } else { "" },
             )
         })
         .collect::<Vec<_>>();

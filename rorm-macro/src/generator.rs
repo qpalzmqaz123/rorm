@@ -243,6 +243,7 @@ fn gen_table_info(info: &TableInfo) -> TokenStream {
             } else {
                 quote! { None }
             };
+            let is_unique = col.is_unique;
 
             quote! {
                 rorm::ColumnInfo {
@@ -252,6 +253,7 @@ fn gen_table_info(info: &TableInfo) -> TokenStream {
                     is_not_null: #is_not_null,
                     is_auto_increment: #is_auto_increment,
                     default: #default,
+                    is_unique: #is_unique,
                 }
             }
         })

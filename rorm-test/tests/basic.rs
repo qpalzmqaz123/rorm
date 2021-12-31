@@ -7,7 +7,7 @@ use rorm::Entity;
 struct User {
     #[rorm(primary_key, auto_increment)]
     pub id: u32,
-    #[rorm(length = 20, default = "NONAME")]
+    #[rorm(length = 20, default = "NONAME", unique)]
     pub name: String,
     pub email: Option<String>,
     #[rorm(sql_type = String, length = 100)]
@@ -63,6 +63,7 @@ async fn test_info() {
                     is_not_null: true,
                     is_auto_increment: true,
                     default: None,
+                    is_unique: false,
                 },
                 rorm::ColumnInfo {
                     name: "name",
@@ -71,6 +72,7 @@ async fn test_info() {
                     is_not_null: true,
                     is_auto_increment: false,
                     default: Some("'NONAME'"),
+                    is_unique: true,
                 },
                 rorm::ColumnInfo {
                     name: "email",
@@ -79,6 +81,7 @@ async fn test_info() {
                     is_not_null: false,
                     is_auto_increment: false,
                     default: None,
+                    is_unique: false,
                 },
                 rorm::ColumnInfo {
                     name: "address",
@@ -87,6 +90,7 @@ async fn test_info() {
                     is_not_null: true,
                     is_auto_increment: false,
                     default: None,
+                    is_unique: false,
                 },
             ],
             indexes: &[

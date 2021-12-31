@@ -10,6 +10,7 @@ pub struct ColumnInfo {
     pub length: Option<usize>,
     pub is_auto_increment: bool,
     pub default: Option<String>, // Sql literal
+    pub is_unique: bool,
 }
 
 #[derive(Debug)]
@@ -31,6 +32,7 @@ enum AttrInfo {
     Type(String),
     Index(Vec<String>),
     Default(String),
+    Unique,
 }
 
 pub fn parse(input: DeriveInput) -> TableInfo {
@@ -98,6 +100,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
         let mut length = None;
         let mut is_auto_increment = false;
         let mut default = Option::<String>::None;
+        let mut is_unique = false;
 
         // Parse attr
         for attr in &field.attrs {
@@ -116,6 +119,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
                     AttrInfo::AutoIncrement => is_auto_increment = true,
                     AttrInfo::Type(ty) => sql_ty = ty,
                     AttrInfo::Default(def) => default = Some(def),
+                    AttrInfo::Unique => is_unique = true,
                     _ => abort!(attr, "Invalid column attr field: {:?}", attr_info),
                 }
             }
@@ -129,6 +133,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
             length,
             is_auto_increment,
             default,
+            is_unique,
         });
     }
 
@@ -137,7 +142,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
 
 fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
     const PARSE_ERR_STR: &'static str = "Parse failed, syntax is #[rorm(field [= value])]";
-    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | table_name = "NAME" | sql_type = RUST_TYPE | length = NUMBER | default = (NUMBER | STR) | index = [col1, col2, ...], ...)"#;
+    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | unique | table_name = "NAME" | sql_type = RUST_TYPE | length = NUMBER | default = (NUMBER | STR) | index = [col1, col2, ...], ...)"#;
 
     let mut attrs = Vec::<AttrInfo>::new();
 
@@ -163,6 +168,9 @@ fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
 
                     // Parse auto_increment
                     "auto_increment" => attrs.push(AttrInfo::AutoIncrement),
+
+                    // Parse auto_increment
+                    "unique" => attrs.push(AttrInfo::Unique),
 
                     // Error
                     _ => abort!(expr, "Syntax error while decode path"; help = ARG_HELP),

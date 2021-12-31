@@ -9,10 +9,11 @@ pub struct TableInfo {
 pub struct ColumnInfo {
     pub name: &'static str,
     pub ty: ColumnType,
-    pub is_primary_key: bool,
-    pub is_not_null: bool,
-    pub is_auto_increment: bool,
-    pub default: Option<&'static str>, // number is "n", string is "'n'"
+    pub is_primary_key: bool,          // Default is false
+    pub is_not_null: bool,             // Default is false
+    pub is_auto_increment: bool,       // Default is false
+    pub default: Option<&'static str>, // Default is None, number is "n", string is "'n'"
+    pub is_unique: bool,               // Default is false
 }
 
 // TODO: Add datetime
