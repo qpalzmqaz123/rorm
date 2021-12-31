@@ -1,6 +1,6 @@
 use rorm_error::Result;
 
-use crate::{Value, Where};
+use crate::{QueryValue, Where};
 
 #[derive(Debug, Default)]
 pub struct UpdateBuilder {
@@ -35,7 +35,7 @@ impl UpdateBuilder {
     ///
     /// assert_eq!(&sql, "UPDATE ta SET a = 1, b = 'abc'");
     /// ```
-    pub fn set<S>(&mut self, col: S, val: Value) -> &mut Self
+    pub fn set<S>(&mut self, col: S, val: QueryValue) -> &mut Self
     where
         S: ToString,
     {
@@ -59,7 +59,7 @@ impl UpdateBuilder {
     /// ```
     pub fn sets<T, S>(&mut self, kvs: T) -> &mut Self
     where
-        T: IntoIterator<Item = (S, Value)>,
+        T: IntoIterator<Item = (S, QueryValue)>,
         S: ToString,
     {
         self.kvs = kvs

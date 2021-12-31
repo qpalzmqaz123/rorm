@@ -1,4 +1,4 @@
-use crate::Value;
+use crate::QueryValue;
 
 #[derive(Debug)]
 pub enum Where {
@@ -14,10 +14,10 @@ pub enum Where {
     Between(Box<Where>, Box<Where>, Box<Where>),
     In(Box<Where>, Vec<Where>),
     Like(Box<Where>, Box<Where>),
-    Value(Value),
+    Value(QueryValue),
 }
 
-impl<T: Into<Value>> From<T> for Where {
+impl<T: Into<QueryValue>> From<T> for Where {
     fn from(v: T) -> Self {
         Self::Value(v.into())
     }

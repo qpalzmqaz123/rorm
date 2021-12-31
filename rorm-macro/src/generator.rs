@@ -214,7 +214,7 @@ fn gen_model(info: &TableInfo) -> TokenStream {
             }
 
             // gen_set_and_params
-            pub fn gen_set_and_params(self) -> (Vec<(&'static str, rorm::query::Value)>, Vec<rorm::pool::Value>) {
+            pub fn gen_set_and_params(self) -> (Vec<(&'static str, rorm::query::QueryValue)>, Vec<rorm::pool::Value>) {
                 use rorm::pool::ToValue;
 
                 let mut sets = Vec::new();

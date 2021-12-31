@@ -4,13 +4,13 @@ mod select;
 mod update;
 #[macro_use]
 mod where_cond;
-mod value;
+mod query_value;
 
 pub use delete::DeleteBuilder;
 pub use insert::InsertBuilder;
+pub use query_value::{sql_str, QueryValue};
 pub use select::SelectBuilder;
 pub use update::UpdateBuilder;
-pub use value::{sql_str, Value};
 pub use where_cond::Where;
 
 #[derive(Debug)]

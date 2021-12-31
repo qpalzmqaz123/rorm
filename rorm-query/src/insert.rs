@@ -1,6 +1,6 @@
 use rorm_error::Result;
 
-use crate::Value;
+use crate::QueryValue;
 
 #[derive(Debug, Default)]
 pub struct InsertBuilder {
@@ -92,7 +92,7 @@ impl InsertBuilder {
     /// ```
     pub fn values<T>(&mut self, values: T) -> &mut Self
     where
-        T: IntoIterator<Item = Value>,
+        T: IntoIterator<Item = QueryValue>,
     {
         self.values_list.push(
             values
