@@ -1,5 +1,4 @@
 mod entity;
-mod info;
 mod model_column;
 mod options;
 mod repository;
@@ -11,7 +10,7 @@ pub use rorm_pool as pool;
 pub use rorm_query as query;
 
 pub use entity::Entity;
-pub use info::{ColumnInfo, ColumnType, IndexInfo, IndexKeyInfo, TableInfo};
 pub use model_column::{ModelColumn, ModelColumn::NotSet, ModelColumn::Set};
 pub use options::FindOption;
+pub use pool::{ColumnInfo, ColumnType, IndexInfo, IndexKeyInfo, TableInfo};
 pub use repository::Repository;

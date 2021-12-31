@@ -1,5 +1,6 @@
 mod connection;
 mod drivers;
+mod info;
 mod value;
 
 pub use connection::Connection;
@@ -7,6 +8,8 @@ pub use value::{FromValue, ToValue, Value};
 
 #[cfg(feature = "sqlite")]
 pub use drivers::sqlite;
+
+pub use info::{ColumnInfo, ColumnType, IndexInfo, IndexKeyInfo, TableInfo};
 
 use rorm_error::Result;
 
