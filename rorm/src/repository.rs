@@ -4,7 +4,7 @@ use crate::{error::Result, pool::Connection, Entity, FindOption};
 
 #[derive(Clone)]
 pub struct Repository<E: Entity> {
-    conn: Connection,
+    pub conn: Connection,
     _marker: PhantomData<E>,
 }
 
