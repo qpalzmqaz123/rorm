@@ -8,7 +8,7 @@ struct User {
     #[rorm(length = 20)]
     pub name: String,
     pub email: Option<String>,
-    #[rorm(sql_type = "String", length = 100)]
+    #[rorm(sql_type = String, length = 100)]
     pub address: Address,
 }
 

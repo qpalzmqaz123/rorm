@@ -162,7 +162,7 @@ fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
                     "length" => attrs.push(AttrInfo::Length(get_num(&assign.right))),
 
                     // Parse type = RUST_TYPE
-                    "sql_type" => attrs.push(AttrInfo::Type(get_str(&assign.right))),
+                    "sql_type" => attrs.push(AttrInfo::Type(get_path(&assign.right))),
 
                     // Error
                     _ => abort!(expr, "Syntax error while decode assign"; help = ARG_HELP),
@@ -197,4 +197,13 @@ fn get_num(expr: &Expr) -> usize {
     }
 
     abort!(expr, "Expect integer")
+}
+
+/// Get type from expr
+fn get_path(expr: &Expr) -> String {
+    if let Expr::Path(path) = expr {
+        return path.path.to_token_stream().to_string();
+    }
+
+    abort!(expr, "Expect path")
 }
