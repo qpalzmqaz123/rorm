@@ -113,32 +113,28 @@ impl InsertBuilder {
         // Build prefix
         parts.push(format!("INSERT INTO {}", self.table));
 
-        // Build columns
-        parts.push(format!("({})", self.columns.join(", ")));
+        if self.columns.len() > 0 {
+            // Build columns
+            parts.push(format!("({})", self.columns.join(", ")));
 
-        // Build values
-        parts.push("VALUES".into());
-        parts.push(
-            self.values_list
-                .iter()
-                .map(|values| format!("({})", values.join(", ")))
-                .collect::<Vec<String>>()
-                .join(", "),
-        );
+            // Build values
+            parts.push("VALUES".into());
+            parts.push(
+                self.values_list
+                    .iter()
+                    .map(|values| format!("({})", values.join(", ")))
+                    .collect::<Vec<String>>()
+                    .join(", "),
+            );
+        } else {
+            parts.push("DEFAULT VALUES".into());
+        }
 
         Ok(parts.join(" "))
     }
 
     /// Validate builder
     fn validate(&self) -> Result<()> {
-        if self.columns.len() == 0 {
-            return Err(rorm_error::query_builder!("Insert empty columns"));
-        }
-
-        if self.values_list.len() == 0 {
-            return Err(rorm_error::query_builder!("Empty values list"));
-        }
-
         for values in &self.values_list {
             if values.len() != self.columns.len() {
                 return Err(rorm_error::query_builder!(
