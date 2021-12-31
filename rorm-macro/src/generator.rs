@@ -248,12 +248,37 @@ fn gen_table_info(info: &TableInfo) -> TokenStream {
             }
         })
         .collect::<Vec<_>>();
+    let index_toks = info
+        .indexes
+        .iter()
+        .map(|index| {
+            let index_name = format!("{}_index_{}", info.table_name, index.join("_"));
+            let keys_toks = index
+                .iter()
+                .map(|col| {
+                    let column_name = col;
+                    quote! {
+                        rorm::IndexKeyInfo {
+                            column_name: #column_name,
+                        }
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            quote! {
+                rorm::IndexInfo {
+                    name: #index_name,
+                    keys: &[#(#keys_toks),*],
+                }
+            }
+        })
+        .collect::<Vec<_>>();
 
     quote! {
         rorm::TableInfo {
             name: #table_name_str,
             columns: &[#(#columns_toks),*],
-            indexes: &[],
+            indexes: &[#(#index_toks),*],
         }
     }
 }

@@ -18,6 +18,7 @@ pub struct TableInfo {
     pub model_name: String,
     pub columns: Vec<ColumnInfo>,
     pub primary_keys: Vec<String>,
+    pub indexes: Vec<Vec<String>>,
 }
 
 #[derive(Debug)]
@@ -27,6 +28,7 @@ enum AttrInfo {
     Length(usize),
     AutoIncrement,
     Type(String),
+    Index(Vec<String>),
 }
 
 pub fn parse(input: DeriveInput) -> TableInfo {
@@ -38,6 +40,7 @@ pub fn parse(input: DeriveInput) -> TableInfo {
     let struct_name = input.ident.to_string();
     let mut table_name = struct_name.clone();
     let model_name = format!("{}Model", table_name);
+    let mut indexes = Vec::<Vec<String>>::new();
 
     // Parse struct attrs
     for attr in &input.attrs {
@@ -49,9 +52,16 @@ pub fn parse(input: DeriveInput) -> TableInfo {
         let attr_infos = parse_rorm_attr(attr);
 
         // Process attr
-        for attr_info in &attr_infos {
-            match &attr_info {
-                AttrInfo::TableName(name) => table_name = name.clone(),
+        for attr_info in attr_infos {
+            match attr_info {
+                AttrInfo::TableName(name) => table_name = name,
+                AttrInfo::Index(cols) => {
+                    if cols.len() == 0 {
+                        abort!(attr, "Empty columns");
+                    }
+
+                    indexes.push(cols);
+                }
                 _ => abort!(attr, "Invalid struct attr field: {:?}", attr_info),
             }
         }
@@ -66,6 +76,7 @@ pub fn parse(input: DeriveInput) -> TableInfo {
         model_name,
         columns,
         primary_keys,
+        indexes,
     }
 }
 
@@ -121,7 +132,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
 
 fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
     const PARSE_ERR_STR: &'static str = "Parse failed, syntax is #[rorm(field [= value])]";
-    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | table_name = "NAME" | sql_type = RUST_TYPE | length = NUMBER, ...)"#;
+    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | table_name = "NAME" | sql_type = RUST_TYPE | length = NUMBER | index = [col1, col2, ...], ...)"#;
 
     let mut attrs = Vec::<AttrInfo>::new();
 
@@ -164,6 +175,9 @@ fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
                     // Parse type = RUST_TYPE
                     "sql_type" => attrs.push(AttrInfo::Type(get_path(&assign.right))),
 
+                    // Parse index = [col1, col2, ...]
+                    "index" => attrs.push(AttrInfo::Index(get_path_arr(&assign.right))),
+
                     // Error
                     _ => abort!(expr, "Syntax error while decode assign"; help = ARG_HELP),
                 }
@@ -202,8 +216,17 @@ fn get_num(expr: &Expr) -> usize {
 /// Get type from expr
 fn get_path(expr: &Expr) -> String {
     if let Expr::Path(path) = expr {
-        return path.path.to_token_stream().to_string();
+        return path.path.segments.last().unwrap().ident.to_string();
     }
 
     abort!(expr, "Expect path")
+}
+
+/// Get path array from expr
+fn get_path_arr(expr: &Expr) -> Vec<String> {
+    if let Expr::Array(arr) = expr {
+        return arr.elems.iter().map(|exp| get_path(exp)).collect();
+    }
+
+    abort!(expr, "Expect path array")
 }

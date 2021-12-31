@@ -2,6 +2,8 @@ use rorm::Entity;
 
 #[derive(Debug, PartialEq, Eq, Entity)]
 #[rorm(table_name = "user")]
+#[rorm(index = [name])]
+#[rorm(index = [email, address])]
 struct User {
     #[rorm(primary_key, auto_increment)]
     pub id: u32,
@@ -87,7 +89,25 @@ async fn test_info() {
                     default: None,
                 },
             ],
-            indexes: &[],
+            indexes: &[
+                rorm::IndexInfo {
+                    name: "user_index_name",
+                    keys: &[rorm::IndexKeyInfo {
+                        column_name: "name",
+                    }],
+                },
+                rorm::IndexInfo {
+                    name: "user_index_email_address",
+                    keys: &[
+                        rorm::IndexKeyInfo {
+                            column_name: "email",
+                        },
+                        rorm::IndexKeyInfo {
+                            column_name: "address",
+                        }
+                    ]
+                }
+            ],
         }
     );
 }
