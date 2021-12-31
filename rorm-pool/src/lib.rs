@@ -19,6 +19,7 @@ pub trait Driver: Sync + Send {
     async fn execute_many(&self, sql: &str, params: Vec<Vec<Value>>) -> Result<Vec<u64>>;
     async fn query_one(&self, sql: &str, params: Vec<Value>) -> Result<Row>;
     async fn query_many(&self, sql: &str, params: Vec<Value>) -> Result<Vec<Row>>;
+    async fn init_table(&self, info: &TableInfo) -> Result<()>;
 }
 
 #[derive(Debug)]

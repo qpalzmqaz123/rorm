@@ -3,7 +3,7 @@ use std::{path::Path, sync::Arc};
 use r2d2_sqlite::{rusqlite, SqliteConnectionManager};
 use rorm_error::Result;
 
-use crate::{Connection, Driver, Row, Value};
+use crate::{ColumnType, Connection, Driver, IndexInfo, Row, TableInfo, Value};
 
 #[cfg(feature = "runtime-tokio-0.2")]
 use tokio_02::task::spawn_blocking;
@@ -177,6 +177,43 @@ impl Driver for SqlitePoolProxy {
 
         Ok(rows)
     }
+
+    async fn init_table(&self, info: &TableInfo) -> Result<()> {
+        // Generate sql
+        let table_sql = gen_create_table(info);
+        let index_sqls = info
+            .indexes
+            .iter()
+            .map(|idx| gen_create_index(info.name, idx))
+            .collect::<Vec<_>>();
+
+        // Execute sql
+        let pool = self.pool.clone();
+        spawn_blocking(move || {
+            log::trace!("Get connection from pool");
+            let conn = pool
+                .get()
+                .map_err(|e| rorm_error::database!("Get connection from pool timeout: {}", e))?;
+
+            log::trace!("Execute `{}`", table_sql);
+            conn.execute(&table_sql, []).map_err(|e| {
+                rorm_error::database!("Create table error: {}, sql: `{}`", e, table_sql)
+            })?;
+
+            for index_sql in index_sqls {
+                log::trace!("Execute `{}`", index_sql);
+                conn.execute(&index_sql, []).map_err(|e| {
+                    rorm_error::database!("Create table error: {}, sql: `{}`", e, index_sql)
+                })?;
+            }
+
+            Result::Ok(())
+        })
+        .await
+        .map_err(|e| rorm_error::runtime!("Tokio join error: {}", e))??;
+
+        Ok(())
+    }
 }
 
 fn rorm_param_to_rusqlite_param(params: &Vec<Value>) -> Vec<&'_ dyn rusqlite::ToSql> {
@@ -225,5 +262,71 @@ impl rusqlite::ToSql for Value {
             Value::Str(v) => <String as rusqlite::ToSql>::to_sql(v),
             Value::Bytes(v) => <Vec<u8> as rusqlite::ToSql>::to_sql(v),
         }
+    }
+}
+
+fn gen_create_table(info: &TableInfo) -> String {
+    let cols = info
+        .columns
+        .iter()
+        .map(|col| {
+            format!(
+                "{name} {ty} {prim_key} {auto_incr} {not_null} {default} {unique}",
+                name = col.name,
+                ty = column_type_to_sqlite_type(&col.ty),
+                prim_key = if col.is_primary_key {
+                    "PRIMARY KEY"
+                } else {
+                    ""
+                },
+                auto_incr = if col.is_auto_increment {
+                    "AUTOINCREMENT"
+                } else {
+                    ""
+                },
+                not_null = if col.is_not_null { "NOT NULL" } else { "" },
+                default = col.default.unwrap_or(""),
+                unique = "",
+            )
+        })
+        .collect::<Vec<_>>();
+
+    format!(
+        "CREATE TABLE IF NOT EXISTS {table_name} ({cols})",
+        table_name = info.name,
+        cols = cols.join(", ")
+    )
+}
+
+fn gen_create_index(table_name: &str, index_info: &IndexInfo) -> String {
+    let cols = index_info
+        .keys
+        .iter()
+        .map(|k| format!("{}", k.column_name))
+        .collect::<Vec<_>>();
+
+    format!(
+        "CREATE INDEX IF NOT EXISTS {index_name} ON {table_name} ({cols})",
+        index_name = index_info.name,
+        table_name = table_name,
+        cols = cols.join(", ")
+    )
+}
+
+fn column_type_to_sqlite_type(col: &ColumnType) -> String {
+    match col {
+        ColumnType::Bool => "INTEGER".into(),
+        ColumnType::I8 => "INTEGER".into(),
+        ColumnType::U8 => "INTEGER".into(),
+        ColumnType::I16 => "INTEGER".into(),
+        ColumnType::U16 => "INTEGER".into(),
+        ColumnType::I32 => "INTEGER".into(),
+        ColumnType::U32 => "INTEGER".into(),
+        ColumnType::I64 => "INTEGER".into(),
+        ColumnType::U64 => "INTEGER".into(),
+        ColumnType::F32 => "REAL".into(),
+        ColumnType::F64 => "REAL".into(),
+        ColumnType::Str(_) => "TEXT".into(),
+        ColumnType::Bytes(_) => "BLOB".into(),
     }
 }

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{Driver, Result, Row, Value};
+use crate::{Driver, Result, Row, TableInfo, Value};
 
 #[derive(Clone)]
 pub struct Connection {
@@ -47,5 +47,11 @@ impl Connection {
         }
 
         Ok(res_list)
+    }
+
+    pub async fn init_table(&self, info: &TableInfo) -> Result<()> {
+        self.driver.init_table(info).await?;
+
+        Ok(())
     }
 }
