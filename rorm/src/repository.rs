@@ -16,6 +16,12 @@ impl<E: Entity> Repository<E> {
         }
     }
 
+    pub async fn init(&self) -> Result<()> {
+        E::init(&self.conn).await?;
+
+        Ok(())
+    }
+
     pub async fn insert<M>(&self, model: M) -> Result<E::PrimaryKey>
     where
         M: Into<E::Model> + Send,

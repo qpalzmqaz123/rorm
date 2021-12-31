@@ -2,6 +2,7 @@ use rorm::{Entity, Repository};
 
 #[derive(Debug, PartialEq, Eq, Entity)]
 #[rorm(table_name = "user")]
+#[rorm(index = [id, name])]
 struct User {
     #[rorm(primary_key)]
     pub id: u32,
@@ -17,13 +18,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let connection = rorm::pool::sqlite::Builder::memory().connect()?;
     let user_repo = Repository::<User>::new(connection.clone());
 
-    // Create table
-    connection
-        .execute_one(
-            "CREATE TABLE user (id INTEGER PRIMARY KEY AUTOINCREMENT, name VARCHAR NOT NULL)",
-            vec![],
-        )
-        .await?;
+    // Init table
+    user_repo.init().await?;
 
     // Check table name
     assert_eq!("user", User::TABLE_NAME);

@@ -24,6 +24,7 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
     let columns: Vec<&String> = info.columns.iter().map(|v| &v.name).collect();
     let info_toks = gen_table_info(&info);
     let from_row_toks = gen_impl_table_from_row(&info);
+    let init_toks = gen_impl_table_init();
     let insert_toks = gen_impl_table_insert(&info);
     let insert_many_toks = gen_impl_table_insert_many(&info);
     let delete_toks = gen_impl_table_delete(&info);
@@ -46,6 +47,9 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
 
             // fn from_row(row: rorm::pool::Row) -> rorm::error::Result<Self>
             #from_row_toks
+
+            // async fn init(conn: &Connection) -> Result<()>;
+            #init_toks
 
             // async fn insert<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<#ty>
             // where
@@ -305,6 +309,16 @@ fn gen_impl_table_from_row(info: &TableInfo) -> TokenStream {
             Ok(Self {
                 #(#field_toks)*
             })
+        }
+    }
+}
+
+fn gen_impl_table_init() -> TokenStream {
+    quote! {
+        async fn init(conn: &rorm::pool::Connection) -> rorm::error::Result<()> {
+            conn.init_table(&Self::INFO).await?;
+
+            Ok(())
         }
     }
 }

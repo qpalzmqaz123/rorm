@@ -17,6 +17,9 @@ pub trait Entity: Sized {
     /// Convert database row to self
     fn from_row(row: Row) -> Result<Self>;
 
+    /// Init table, create table and index if not exists
+    async fn init(conn: &Connection) -> Result<()>;
+
     /// Insert single value
     async fn insert<M>(conn: &Connection, model: M) -> Result<Self::PrimaryKey>
     where
