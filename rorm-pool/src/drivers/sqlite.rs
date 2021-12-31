@@ -285,7 +285,10 @@ fn gen_create_table(info: &TableInfo) -> String {
                     ""
                 },
                 not_null = if col.is_not_null { "NOT NULL" } else { "" },
-                default = col.default.unwrap_or(""),
+                default = col
+                    .default
+                    .map(|def| format!("DEFAULT {}", def))
+                    .unwrap_or("".into()),
                 unique = if col.is_unique { "UNIQUE" } else { "" },
             )
         })
