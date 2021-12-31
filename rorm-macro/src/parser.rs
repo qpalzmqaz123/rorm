@@ -1,6 +1,6 @@
 use proc_macro_error::abort;
 use quote::ToTokens;
-use syn::{Attribute, Data, DataStruct, DeriveInput, Expr, Lit, Meta};
+use syn::{Attribute, Data, DataStruct, DeriveInput, Expr, Lit};
 
 #[derive(Debug, Clone)]
 pub struct ColumnInfo {
@@ -120,28 +120,24 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
 }
 
 fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
-    const PARSE_ERR_STR: &'static str =
-        "Parse to metalist failed, syntax is #[rorm(field [= value])]";
+    const PARSE_ERR_STR: &'static str = "Parse failed, syntax is #[rorm(field [= value])]";
     const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | table_name = "NAME" | sql_type = RUST_TYPE | length = NUMBER, ...)"#;
 
     let mut attrs = Vec::<AttrInfo>::new();
 
-    // Parse to metalist
-    let meta_list = if let Ok(Meta::List(l)) = attr.parse_meta() {
-        l
-    } else {
-        abort!(attr, PARSE_ERR_STR)
-    };
+    // Generate function call tokens: rorm(xxx)
+    let path = attr.path.clone();
+    let toks = attr.tokens.clone();
+    let call_toks = quote::quote! {#path #toks};
 
-    // Parse rorm(field [ = value], ...)
-    let call = if let Ok(call) = syn::parse2::<syn::ExprCall>(meta_list.to_token_stream()) {
-        call
+    let args = if let Ok(call) = syn::parse2::<syn::ExprCall>(call_toks) {
+        call.args
     } else {
-        abort!(attr, PARSE_ERR_STR);
+        abort!(attr.tokens, PARSE_ERR_STR);
     };
 
     // Parse args
-    for expr in &call.args {
+    for expr in &args {
         match expr {
             Expr::Path(p) => {
                 let field_name = p.to_token_stream().to_string();
