@@ -234,7 +234,11 @@ fn gen_table_info(info: &TableInfo) -> TokenStream {
             let (ty_toks, is_not_null) = gen_column_type_and_is_not_null(&col);
             let is_primary_key = info.primary_keys.contains(name);
             let is_auto_increment = col.is_auto_increment;
-            let default = quote! { None };
+            let default = if let Some(def) = &col.default {
+                quote! { Some(#def) }
+            } else {
+                quote! { None }
+            };
 
             quote! {
                 rorm::ColumnInfo {

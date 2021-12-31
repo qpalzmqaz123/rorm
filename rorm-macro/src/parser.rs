@@ -9,6 +9,7 @@ pub struct ColumnInfo {
     pub sql_ty: String, // User specific type, use for generate sql type, default it's same with ty
     pub length: Option<usize>,
     pub is_auto_increment: bool,
+    pub default: Option<String>, // Sql literal
 }
 
 #[derive(Debug)]
@@ -29,6 +30,7 @@ enum AttrInfo {
     AutoIncrement,
     Type(String),
     Index(Vec<String>),
+    Default(String),
 }
 
 pub fn parse(input: DeriveInput) -> TableInfo {
@@ -95,6 +97,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
         let mut sql_ty = ty.clone();
         let mut length = None;
         let mut is_auto_increment = false;
+        let mut default = Option::<String>::None;
 
         // Parse attr
         for attr in &field.attrs {
@@ -112,6 +115,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
                     AttrInfo::Length(len) => length = Some(len),
                     AttrInfo::AutoIncrement => is_auto_increment = true,
                     AttrInfo::Type(ty) => sql_ty = ty,
+                    AttrInfo::Default(def) => default = Some(def),
                     _ => abort!(attr, "Invalid column attr field: {:?}", attr_info),
                 }
             }
@@ -124,6 +128,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
             sql_ty,
             length,
             is_auto_increment,
+            default,
         });
     }
 
@@ -132,7 +137,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
 
 fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
     const PARSE_ERR_STR: &'static str = "Parse failed, syntax is #[rorm(field [= value])]";
-    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | table_name = "NAME" | sql_type = RUST_TYPE | length = NUMBER | index = [col1, col2, ...], ...)"#;
+    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | table_name = "NAME" | sql_type = RUST_TYPE | length = NUMBER | default = (NUMBER | STR) | index = [col1, col2, ...], ...)"#;
 
     let mut attrs = Vec::<AttrInfo>::new();
 
@@ -177,6 +182,9 @@ fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
 
                     // Parse index = [col1, col2, ...]
                     "index" => attrs.push(AttrInfo::Index(get_path_arr(&assign.right))),
+
+                    // Parse default = (NUMBER | STR)
+                    "default" => attrs.push(AttrInfo::Default(get_sql_lit(&assign.right))),
 
                     // Error
                     _ => abort!(expr, "Syntax error while decode assign"; help = ARG_HELP),
@@ -229,4 +237,25 @@ fn get_path_arr(expr: &Expr) -> Vec<String> {
     }
 
     abort!(expr, "Expect path array")
+}
+
+/// Get sql lit from expr
+/// for example: 1 => "1", 1.1 => "1.1", "str" => "'str'"
+fn get_sql_lit(expr: &Expr) -> String {
+    if let Expr::Lit(lit) = expr {
+        match &lit.lit {
+            Lit::Int(n) => {
+                return n.to_string();
+            }
+            Lit::Float(n) => {
+                return n.to_string();
+            }
+            Lit::Str(s) => {
+                return format!("'{}'", s.value());
+            }
+            _ => {}
+        }
+    }
+
+    abort!(expr, "Expect literal")
 }
