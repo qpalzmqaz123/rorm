@@ -34,10 +34,10 @@ pub trait Entity: Sized {
         M: Into<Self::Model> + Send;
 
     /// Update single value
-    async fn update<SM, DM>(conn: &Connection, src: SM, dst: DM) -> Result<()>
+    async fn update<CM, SM>(conn: &Connection, condition: CM, set: SM) -> Result<()>
     where
-        SM: Into<Self::Model> + Send,
-        DM: Into<Self::Model> + Send;
+        CM: Into<Self::Model> + Send,
+        SM: Into<Self::Model> + Send;
 
     /// Find single value
     async fn find<M>(conn: &Connection, model: M, option: Option<FindOption>) -> Result<Self>

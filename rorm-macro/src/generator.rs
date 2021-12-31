@@ -63,10 +63,10 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
             //     M: Into<#model_name>,
             #delete_toks
 
-            // async fn update<SM, DM>(conn: &rorm::pool::Connection, src: SM, dst: DM) -> rorm::error::Result<()>
+            // async fn update<SM, DM>(conn: &rorm::pool::Connection, condition: CM, set: SM) -> rorm::error::Result<()>
             // where
+            //     CM: Into<#model_name>,
             //     SM: Into<#model_name>,
-            //     DM: Into<#model_name>,
             #update_toks
 
             // async fn find<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Self>
@@ -419,29 +419,29 @@ fn gen_impl_table_update(info: &TableInfo) -> TokenStream {
     let model_name = str_to_toks(&info.model_name);
 
     quote! {
-        async fn update<SM, DM>(conn: &rorm::pool::Connection, src: SM, dst: DM) -> rorm::error::Result<()>
+        async fn update<CM, SM>(conn: &rorm::pool::Connection, condition: CM, set: SM) -> rorm::error::Result<()>
         where
+            CM: Into<#model_name> + Send,
             SM: Into<#model_name> + Send,
-            DM: Into<#model_name> + Send,
         {
-            let src: #model_name = src.into();
-            let dst: #model_name = dst.into();
+            let condition: #model_name = condition.into();
+            let set: #model_name = set.into();
             let mut sql_builder = rorm::query::QueryBuilder::update(Self::TABLE_NAME);
-            let (src_cond, mut src_params) = src.gen_where_and_params();
-            let (dst_sets, dst_params) = dst.gen_set_and_params();
+            let (cond, mut cond_params) = condition.gen_where_and_params();
+            let (set_sets, set_params) = set.gen_set_and_params();
 
             // Set builder
-            if let Some(cond) = src_cond {
+            if let Some(cond) = cond {
                 sql_builder.where_cond(cond);
             }
 
-            sql_builder.sets(dst_sets);
+            sql_builder.sets(set_sets);
 
             // Build sql
             let sql = sql_builder.build()?;
 
-            let mut params = dst_params;
-            params.append(&mut src_params);
+            let mut params = set_params;
+            params.append(&mut cond_params);
 
             // Execute
             conn.execute_one(&sql, params).await?;

@@ -38,12 +38,12 @@ impl<E: Entity> Repository<E> {
         Ok(E::delete(&self.conn, model).await?)
     }
 
-    pub async fn update<SM, DM>(&self, src: SM, dst: DM) -> Result<()>
+    pub async fn update<CM, SM>(&self, condition: CM, set: SM) -> Result<()>
     where
+        CM: Into<E::Model> + Send,
         SM: Into<E::Model> + Send,
-        DM: Into<E::Model> + Send,
     {
-        Ok(E::update(&self.conn, src, dst).await?)
+        Ok(E::update(&self.conn, condition, set).await?)
     }
 
     pub async fn find<M>(&self, model: M, option: Option<FindOption>) -> Result<E>
