@@ -146,7 +146,7 @@ fn gen_model(info: &TableInfo) -> TokenStream {
             quote! {
                 if let rorm::Set(v) = self.#name {
                     params.push(v.to_value());
-                    sets.push((#name_str, "?".into()));
+                    sets.push(#name_str);
                 }
             }
         })
@@ -214,7 +214,7 @@ fn gen_model(info: &TableInfo) -> TokenStream {
             }
 
             // gen_set_and_params
-            pub fn gen_set_and_params(self) -> (Vec<(&'static str, rorm::query::QueryValue)>, Vec<rorm::pool::Value>) {
+            pub fn gen_set_and_params(self) -> (Vec<&'static str>, Vec<rorm::pool::Value>) {
                 use rorm::pool::ToValue;
 
                 let mut sets = Vec::new();
@@ -328,19 +328,6 @@ fn gen_impl_table_init() -> TokenStream {
 fn gen_impl_table_insert(info: &TableInfo) -> TokenStream {
     let primary_key_type = gen_primary_key_type_toks(&info.columns, &info.primary_keys);
     let model_name = str_to_toks(&info.model_name);
-    let sql_params_toks: Vec<TokenStream> = info
-        .columns
-        .iter()
-        .map(|col| {
-            let name = str_to_toks(&col.name);
-            quote! {
-                model.#name.to_value()
-            }
-        })
-        .collect();
-    let values_toks = (0..info.columns.len())
-        .map(|_| quote! {"?".into()})
-        .collect::<Vec<_>>();
 
     quote! {
         async fn insert<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<#primary_key_type>
@@ -350,12 +337,13 @@ fn gen_impl_table_insert(info: &TableInfo) -> TokenStream {
             use rorm::pool::ToValue;
 
             let model: #model_name = model.into();
+            let (cols, params) = model.gen_set_and_params();
             let sql = rorm::query::QueryBuilder::insert(Self::TABLE_NAME)
-                .columns(Self::COLUMNS)
-                .values([#(#values_toks),*])
+                .columns(&cols)
+                .values(cols.iter().map(|_| "?".into()).collect::<Vec<_>>())
                 .build()?;
             let key = conn
-                .execute_one(&sql, vec![#(#sql_params_toks),*])
+                .execute_one(&sql, params)
                 .await?;
 
             // FIXME: Union index is not currently supported
@@ -367,19 +355,6 @@ fn gen_impl_table_insert(info: &TableInfo) -> TokenStream {
 fn gen_impl_table_insert_many(info: &TableInfo) -> TokenStream {
     let primary_key_type = gen_primary_key_type_toks(&info.columns, &info.primary_keys);
     let model_name = str_to_toks(&info.model_name);
-    let sql_params_toks: Vec<TokenStream> = info
-        .columns
-        .iter()
-        .map(|col| {
-            let name = str_to_toks(&col.name);
-            quote! {
-                model.#name.to_value()
-            }
-        })
-        .collect();
-    let values_toks = (0..info.columns.len())
-        .map(|_| quote! {"?".into()})
-        .collect::<Vec<_>>();
 
     quote! {
         async fn insert_many<T, M>(conn: &rorm::pool::Connection, models: T) -> rorm::error::Result<Vec<#primary_key_type>>
@@ -389,20 +364,41 @@ fn gen_impl_table_insert_many(info: &TableInfo) -> TokenStream {
         {
             use rorm::pool::ToValue;
 
-            let params = models
-                .into_iter()
-                .map(|v| {
-                    let model: #model_name = v.into();
-                    vec![#(#sql_params_toks),*]
-                })
-                .collect::<Vec<Vec<rorm::pool::Value>>>();
-            let sql = rorm::query::QueryBuilder::insert(Self::TABLE_NAME)
-                .columns(Self::COLUMNS)
-                .values([#(#values_toks),*])
-                .build()?;
-            let keys = conn.execute_many(&sql, params).await?;
+            let mut sql = Option::<String>::None;
+            let mut first_cols = Option::<Vec<&'static str>>::None;
+            let mut params_list = Vec::new();
 
-            Ok(keys.into_iter().map(|k| k as #primary_key_type).collect())
+            for model in models.into_iter() {
+                let model: #model_name = model.into();
+                let (cols, params) = model.gen_set_and_params();
+
+                // Generate sql
+                if sql.is_none() {
+                    sql = Some(rorm::query::QueryBuilder::insert(Self::TABLE_NAME)
+                        .columns(&cols)
+                        .values(cols.iter().map(|_| "?".into()).collect::<Vec<_>>())
+                        .build()?);
+                }
+
+                // Check model cols
+                if let Some(first_cols) = &first_cols {
+                    if first_cols != &cols {
+                        return Err(rorm::error::argument!("Model insert rows mismatch, first_cols: {:?}, recevied: {:?}", first_cols, cols));
+                    }
+                } else {
+                    first_cols = Some(cols);
+                }
+
+                // Append params
+                params_list.push(params);
+            }
+
+            if let Some(sql) = sql {
+                let keys = conn.execute_many(&sql, params_list).await?;
+                Ok(keys.into_iter().map(|k| k as #primary_key_type).collect())
+            } else {
+                Ok(Vec::new())
+            }
         }
     }
 }
@@ -448,14 +444,16 @@ fn gen_impl_table_update(info: &TableInfo) -> TokenStream {
             let set: #model_name = set.into();
             let mut sql_builder = rorm::query::QueryBuilder::update(Self::TABLE_NAME);
             let (cond, mut cond_params) = condition.gen_where_and_params();
-            let (set_sets, set_params) = set.gen_set_and_params();
+            let (set_cols, set_params) = set.gen_set_and_params();
 
             // Set builder
             if let Some(cond) = cond {
                 sql_builder.where_cond(cond);
             }
 
-            sql_builder.sets(set_sets);
+            for set_col in set_cols {
+                sql_builder.set(set_col, "?".into());
+            }
 
             // Build sql
             let sql = sql_builder.build()?;
