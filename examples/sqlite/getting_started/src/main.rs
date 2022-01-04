@@ -4,7 +4,7 @@ use rorm::{Entity, Repository};
 #[rorm(table_name = "user")]
 #[rorm(index = [id, name])]
 struct User {
-    #[rorm(primary_key)]
+    #[rorm(primary_key, auto_increment)]
     pub id: u32,
     pub name: String,
 }
