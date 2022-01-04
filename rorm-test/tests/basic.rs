@@ -1,6 +1,5 @@
-use std::future::Future;
-
-use rorm::{Entity, FindOption, Repository, Set};
+use rorm::{Entity, FindOption, Set};
+use rorm_test::run_test;
 
 #[derive(Debug, PartialEq, Eq, Entity)]
 #[rorm(table_name = "user")]
@@ -129,7 +128,7 @@ async fn test_info() {
 
 #[tokio::test]
 async fn test_unique() {
-    run_test(|repo| async move {
+    run_test::<User, _, _>(|repo| async move {
         // First insert
         repo.insert(UserModel {
             name: Set("bob".into()),
@@ -157,7 +156,7 @@ async fn test_unique() {
 
 #[tokio::test]
 async fn test_default() {
-    run_test(|repo| async move {
+    run_test::<User, _, _>(|repo| async move {
         // Insert without name
         let id = repo
             .insert(UserModel {
@@ -184,7 +183,7 @@ async fn test_default() {
 
 #[tokio::test]
 async fn test_option() {
-    run_test(|repo| async move {
+    run_test::<User, _, _>(|repo| async move {
         // Insert without name
         let id = repo
             .insert(UserModel {
@@ -212,7 +211,7 @@ async fn test_option() {
 
 #[tokio::test]
 async fn test_insert_many() {
-    run_test(|repo| async move {
+    run_test::<User, _, _>(|repo| async move {
         let users = [
             UserModel {
                 name: Set("a".into()),
@@ -260,19 +259,4 @@ async fn test_insert_many() {
         )
     })
     .await;
-}
-
-async fn run_test<Fn, Fut>(f: Fn)
-where
-    Fn: FnOnce(Repository<User>) -> Fut,
-    Fut: Future<Output = ()>,
-{
-    env_logger::try_init().ok();
-
-    let conn = rorm::pool::sqlite::Builder::memory().connect().unwrap();
-    let repo = Repository::<User>::new(conn);
-
-    repo.init().await.unwrap();
-
-    f(repo).await;
 }
