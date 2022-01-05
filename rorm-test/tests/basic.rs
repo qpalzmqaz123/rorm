@@ -1,5 +1,5 @@
-use rorm::{Entity, FindOption, Set};
-use rorm_test::run_test;
+use rorm::{Entity, FindOption, Repository};
+use rorm_test::run_async_test;
 
 #[derive(Debug, PartialEq, Eq, Entity)]
 #[rorm(table_name = "user")]
@@ -128,11 +128,11 @@ async fn test_info() {
 
 #[tokio::test]
 async fn test_unique() {
-    run_test::<User, _, _>(|repo| async move {
+    run_async_test!((repo: Repository<User>) => {
         // First insert
         repo.insert(UserModel {
-            name: Set("bob".into()),
-            address: Set(Address::new("a", "b")),
+            name: "bob".into(),
+            address: Address::new("a", "b").into(),
             ..Default::default()
         })
         .await
@@ -141,26 +141,24 @@ async fn test_unique() {
         // Second insert
         let res = repo
             .insert(UserModel {
-                name: Set("bob".into()),
-                address: Set(Address::new("a", "b")),
+                name: "bob".into(),
+                address: Address::new("a", "b").into(),
                 ..Default::default()
             })
             .await;
 
         // Assert error
-        println!("{:?}", res);
         assert!(res.is_err());
-    })
-    .await;
+    });
 }
 
 #[tokio::test]
 async fn test_default() {
-    run_test::<User, _, _>(|repo| async move {
+    run_async_test!((repo: Repository<User>) => {
         // Insert without name
         let id = repo
             .insert(UserModel {
-                address: Set(Address::new("a", "b")),
+                address: Address::new("a", "b").into(),
                 ..Default::default()
             })
             .await
@@ -177,18 +175,17 @@ async fn test_default() {
                 address: Address::new("a", "b"),
             }
         );
-    })
-    .await;
+    });
 }
 
 #[tokio::test]
 async fn test_option() {
-    run_test::<User, _, _>(|repo| async move {
+    run_async_test!((repo: Repository<User>) => {
         // Insert without name
         let id = repo
             .insert(UserModel {
-                address: Set(Address::new("a", "b")),
-                email: Set(Some("abc".into())),
+                address: Address::new("a", "b").into(),
+                email: Some("abc").into(),
                 ..Default::default()
             })
             .await
@@ -205,22 +202,21 @@ async fn test_option() {
                 address: Address::new("a", "b"),
             }
         );
-    })
-    .await;
+    });
 }
 
 #[tokio::test]
 async fn test_insert_many() {
-    run_test::<User, _, _>(|repo| async move {
+    run_async_test!((repo: Repository<User>) => {
         let users = [
             UserModel {
-                name: Set("a".into()),
-                address: Set(Address::new("a", "b")),
+                name: "a".into(),
+                address: Address::new("a", "b").into(),
                 ..Default::default()
             },
             UserModel {
-                name: Set("b".into()),
-                address: Set(Address::new("a", "b")),
+                name: "b".into(),
+                address: Address::new("a", "b").into(),
                 ..Default::default()
             },
         ];
@@ -257,6 +253,5 @@ async fn test_insert_many() {
                 },
             ]
         )
-    })
-    .await;
+    });
 }

@@ -1,4 +1,4 @@
-use rorm::{Entity, Repository};
+use rorm::{Entity, FindOption, Repository};
 
 #[derive(Debug, PartialEq, Eq, Entity)]
 #[rorm(table_name = "user")]
@@ -11,8 +11,6 @@ struct User {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    use rorm::{FindOption, ModelColumn::Set};
-
     env_logger::init();
 
     let connection = rorm::pool::sqlite::Builder::memory().connect()?;
@@ -26,7 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Insert bob
     let bob = UserModel {
-        name: Set("bob".into()),
+        name: "bob".into(),
         ..Default::default()
     };
     let bob_id = user_repo.insert(bob).await?;
@@ -34,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Insert alice
     let alice = UserModel {
-        name: Set("alice".into()),
+        name: "alice".into(),
         ..Default::default()
     };
     let alice_id = user_repo.insert(alice).await?;
@@ -54,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let alice = user_repo
         .find(
             UserModel {
-                name: Set("alice".into()),
+                name: "alice".into(),
                 ..Default::default()
             },
             None,
@@ -100,7 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .update(
             2,
             UserModel {
-                name: Set("alex".into()),
+                name: "alex".into(),
                 ..Default::default()
             },
         )
@@ -116,11 +114,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Insert many
     let carl = UserModel {
-        name: Set("carl".into()),
+        name: "carl".into(),
         ..Default::default()
     };
     let lee = UserModel {
-        name: Set("lee".into()),
+        name: "lee".into(),
         ..Default::default()
     };
     user_repo.insert_many([carl, lee]).await?;

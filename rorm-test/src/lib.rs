@@ -1,19 +1,21 @@
-use std::future::Future;
+#[macro_export]
+macro_rules! run_async_test {
+    (( $($table:ident : $repo_ty:ty),* ) => $body:block) => {
+        env_logger::try_init().ok();
 
-use rorm::{Entity, Repository};
+        let conn = rorm::pool::sqlite::Builder::memory().connect().unwrap();
 
-pub async fn run_test<E, Fn, Fut>(f: Fn)
-where
-    E: Entity,
-    Fn: FnOnce(Repository<E>) -> Fut,
-    Fut: Future<Output = ()>,
-{
-    env_logger::try_init().ok();
+        let func = |$($table: $repo_ty),*| async move { $body };
 
-    let conn = rorm::pool::sqlite::Builder::memory().connect().unwrap();
-    let repo = Repository::<E>::new(conn);
+        func(
+            $(
+                {
+                    let repo = <$repo_ty>::new(conn.clone());
+                    repo.init().await.unwrap();
 
-    repo.init().await.unwrap();
-
-    f(repo).await;
+                    repo
+                }
+            ),*
+        ).await;
+    };
 }

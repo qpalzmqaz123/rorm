@@ -28,8 +28,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Query value
     let res = conn
-        .query_many_map("SELECT (a) FROM ta WHERE a < 5", vec![], |row| {
-            row.get::<i32>(0)
+        .query_many_map("SELECT (a) FROM ta WHERE a < 5", vec![], |row| async move {
+            Ok(row.get::<i32>(0)?)
         })
         .await?;
     println!("res: {:?}", res);
