@@ -18,7 +18,7 @@ struct User {
     #[rorm(primary_key, auto_increment)]
     pub id: u32,
     pub name: String,
-		pub nickname: Option<String>,
+    pub nickname: Option<String>,
 }
 ```
 
@@ -90,8 +90,8 @@ user_repo.update(bob_id, new_bob).await?;
 let bob = user_repo.find(bob_id, None).await?;
 
 let users = user_repo.find_many(UserModel::default(), FindOption {
-  	limit: Some((10, 0)), // limit 10, offset 0
-  	..Default::default()
+    limit: Some((10, 0)), // limit 10, offset 0
+    ..Default::default()
 }).await?;
 ```
 
@@ -101,8 +101,8 @@ let users = user_repo.find_many(UserModel::default(), FindOption {
 user_repo.delete(bob_id).await?;
 
 user_repo.delete(UserModel {
-  	nickname: Some("bbb").into(),
-  	..Default::default()
+    nickname: Some("bbb").into(),
+    ..Default::default()
 }).await?;
 ```
 
@@ -150,15 +150,15 @@ user_repo.delete(UserModel {
 
    ```sql
    CREATE TABLE User {
-   	id INTEGER,
-   	name VARCHAR,
+       id INTEGER,
+       name VARCHAR,
    }
    
    CREATE TABLE Address {
-   	id INTEGER,
-   	user_id INTEGER,
-   	city VARCHAR,
-   	street VARCHAR,
+       id INTEGER,
+       user_id INTEGER,
+       city VARCHAR,
+       street VARCHAR,
    }
    ```
 
@@ -169,16 +169,16 @@ user_repo.delete(UserModel {
    struct User {
        pub id: u32,
        pub name: String,
-     	#[rorm(relation = id > user_id)] // 将自己的 id 与 address 的 user_id 关联
-     	pub addresses: Vec<Address>,
+       #[rorm(relation = id > user_id)] // 将自己的 id 与 address 的 user_id 关联
+       pub addresses: Vec<Address>,
    }
    
    #[derive(Entity)]
    struct Address {
-     	pub id: u32,
-     	pub user_id: u32,
-     	pub city: String,
-     	pub street: String,
+       pub id: u32,
+       pub user_id: u32,
+       pub city: String,
+       pub street: String,
    }
    ```
 
