@@ -384,8 +384,6 @@ fn gen_impl_table_insert(info: &TableInfo) -> TokenStream {
         where
             M: Into<#model_name> + Send,
         {
-            use rorm::pool::ToValue;
-
             let model: #model_name = model.into();
             let (cols, params) = model.gen_set_and_params();
             let sql = rorm::query::QueryBuilder::insert(Self::TABLE_NAME)
@@ -412,8 +410,6 @@ fn gen_impl_table_insert_many(info: &TableInfo) -> TokenStream {
             T: IntoIterator<Item = M> + Send,
             M: Into<#model_name> + Send,
         {
-            use rorm::pool::ToValue;
-
             let mut sql = Option::<String>::None;
             let mut first_cols = Option::<Vec<&'static str>>::None;
             let mut params_list = Vec::new();
