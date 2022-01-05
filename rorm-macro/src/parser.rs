@@ -1,6 +1,15 @@
 use proc_macro_error::abort;
 use quote::ToTokens;
-use syn::{Attribute, Data, DataStruct, DeriveInput, Expr, Lit};
+use syn::{Attribute, BinOp, Data, DataStruct, DeriveInput, Expr, Lit};
+
+#[derive(Debug, Clone)]
+pub struct RelationInfo {
+    pub ty: String,
+    pub is_vec: bool,
+    pub self_col: String,
+    pub ref_col: String,
+    pub is_not_null: bool,
+}
 
 #[derive(Debug, Clone)]
 pub struct ColumnInfo {
@@ -11,6 +20,7 @@ pub struct ColumnInfo {
     pub is_auto_increment: bool,
     pub default: Option<String>, // Sql literal
     pub is_unique: bool,
+    pub relation: Option<RelationInfo>,
 }
 
 #[derive(Debug)]
@@ -33,6 +43,7 @@ enum AttrInfo {
     Index(Vec<String>),
     Default(String),
     Unique,
+    Relation((String, String)), // (self_col, ref_col)
 }
 
 pub fn parse(input: DeriveInput) -> TableInfo {
@@ -101,6 +112,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
         let mut is_auto_increment = false;
         let mut default = Option::<String>::None;
         let mut is_unique = false;
+        let mut relation = Option::<RelationInfo>::None;
 
         // Parse attr
         for attr in &field.attrs {
@@ -117,9 +129,12 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
                     AttrInfo::PrimaryKey => primary_keys.push(name.clone()),
                     AttrInfo::Length(len) => length = Some(len),
                     AttrInfo::AutoIncrement => is_auto_increment = true,
-                    AttrInfo::Type(ty) => sql_ty = ty,
+                    AttrInfo::Type(ty) => sql_ty = ty.clone(),
                     AttrInfo::Default(def) => default = Some(def),
                     AttrInfo::Unique => is_unique = true,
+                    AttrInfo::Relation((self_col, ref_col)) => {
+                        relation = Some(parse_relation(&ty, self_col, ref_col))
+                    }
                     _ => abort!(attr, "Invalid column attr field: {:?}", attr_info),
                 }
             }
@@ -134,6 +149,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
             is_auto_increment,
             default,
             is_unique,
+            relation,
         });
     }
 
@@ -142,7 +158,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
 
 fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
     const PARSE_ERR_STR: &'static str = "Parse failed, syntax is #[rorm(field [= value])]";
-    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | unique | table_name = "NAME" | sql_type = RUST_TYPE | length = NUMBER | default = (NUMBER | STR) | index = [col1, col2, ...], ...)"#;
+    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | unique | table_name = "NAME" | relation = SELF_COLUMN > REFER_COLUMN | sql_type = RUST_TYPE | length = NUMBER | default = (NUMBER | STR) | index = [col1, col2, ...], ...)"#;
 
     let mut attrs = Vec::<AttrInfo>::new();
 
@@ -194,6 +210,9 @@ fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
                     // Parse default = (NUMBER | STR)
                     "default" => attrs.push(AttrInfo::Default(get_sql_lit(&assign.right))),
 
+                    // Parse relation = SELF_COLUMN > REFER_COLUMN
+                    "relation" => attrs.push(AttrInfo::Relation(get_gt_path(&assign.right))),
+
                     // Error
                     _ => abort!(expr, "Syntax error while decode assign"; help = ARG_HELP),
                 }
@@ -203,6 +222,41 @@ fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
     }
 
     attrs
+}
+
+fn parse_relation(ty: &String, self_col: String, ref_col: String) -> RelationInfo {
+    let ty = ty.replace(" ", "");
+
+    // Parse 'Option<foo>'
+    if ty.starts_with("Option<") {
+        return RelationInfo {
+            ty: (&ty[7..ty.len() - 1]).into(),
+            is_vec: false,
+            self_col,
+            ref_col,
+            is_not_null: false,
+        };
+    }
+
+    // Parse 'Vec<foo>'
+    if ty.starts_with("Vec<") {
+        return RelationInfo {
+            ty: (&ty[4..ty.len() - 1]).into(),
+            is_vec: true,
+            self_col,
+            ref_col,
+            is_not_null: true,
+        };
+    }
+
+    // Parse 'foo'
+    return RelationInfo {
+        ty: ty.clone(),
+        is_vec: false,
+        self_col,
+        ref_col,
+        is_not_null: true,
+    };
 }
 
 /// Get string from expr
@@ -266,4 +320,19 @@ fn get_sql_lit(expr: &Expr) -> String {
     }
 
     abort!(expr, "Expect literal")
+}
+
+/// Get > from expr
+fn get_gt_path(expr: &Expr) -> (String, String) {
+    // (left, right) in 'left > right'
+    if let Expr::Binary(bin) = expr {
+        if let BinOp::Gt(_) = bin.op {
+            let left = get_path(&bin.left);
+            let right = get_path(&bin.right);
+
+            return (left, right);
+        }
+    }
+
+    abort!(expr, "Expect gt binary op")
 }

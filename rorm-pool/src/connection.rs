@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{future::Future, sync::Arc};
 
 use crate::{Driver, Result, Row, TableInfo, Value};
 
@@ -20,30 +20,37 @@ impl Connection {
         Ok(self.driver.execute_many(sql, params).await?)
     }
 
-    pub async fn query_one_map<T, F>(&self, sql: &str, params: Vec<Value>, map: F) -> Result<T>
+    pub async fn query_one_map<T, Fun, Fut>(
+        &self,
+        sql: &str,
+        params: Vec<Value>,
+        map: Fun,
+    ) -> Result<T>
     where
-        F: FnOnce(Row) -> Result<T>,
+        Fun: FnOnce(Row) -> Fut,
+        Fut: Future<Output = Result<T>>,
     {
         let row = self.driver.query_one(sql, params).await?;
-        let res = map(row)?;
+        let res = map(row).await?;
 
         Ok(res)
     }
 
-    pub async fn query_many_map<T, F>(
+    pub async fn query_many_map<T, Fun, Fut>(
         &self,
         sql: &str,
         params: Vec<Value>,
-        map: F,
+        map: Fun,
     ) -> Result<Vec<T>>
     where
-        F: Fn(Row) -> Result<T>,
+        Fun: Fn(Row) -> Fut,
+        Fut: Future<Output = Result<T>>,
     {
         let rows = self.driver.query_many(sql, params).await?;
         let mut res_list = Vec::<T>::new();
 
         for row in rows {
-            res_list.push(map(row)?);
+            res_list.push(map(row).await?);
         }
 
         Ok(res_list)

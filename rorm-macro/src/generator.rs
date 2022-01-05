@@ -21,7 +21,12 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
     let table_name_str = &info.table_name;
     let model_name = str_to_toks(&info.model_name);
     let struct_name = str_to_toks(&info.struct_name);
-    let columns: Vec<&String> = info.columns.iter().map(|v| &v.name).collect();
+    let columns: Vec<&String> = info
+        .columns
+        .iter()
+        .filter(|col| col.relation.is_none()) // Skip relation fields
+        .map(|v| &v.name)
+        .collect();
     let info_toks = gen_table_info(&info);
     let from_row_toks = gen_impl_table_from_row(&info);
     let init_toks = gen_impl_table_init();
@@ -99,6 +104,7 @@ fn gen_model(info: &TableInfo) -> TokenStream {
     let field_toks: Vec<TokenStream> = info
         .columns
         .iter()
+        .filter(|col| col.relation.is_none()) // Skip relation fields
         .map(|col| {
             let name = str_to_toks(&col.name);
             let ty = str_to_toks(&col.ty);
@@ -110,6 +116,7 @@ fn gen_model(info: &TableInfo) -> TokenStream {
     let from_field_toks: Vec<TokenStream> = info
         .columns
         .iter()
+        .filter(|col| col.relation.is_none()) // Skip relation fields
         .map(|col| {
             let name = str_to_toks(&col.name);
             quote! {
@@ -120,6 +127,7 @@ fn gen_model(info: &TableInfo) -> TokenStream {
     let gen_where_and_params_field_toks: Vec<TokenStream> = info
         .columns
         .iter()
+        .filter(|col| col.relation.is_none()) // Skip relation field
         .map(|col| {
             let name_str = &col.name;
             let name = str_to_toks(&col.name);
@@ -140,6 +148,7 @@ fn gen_model(info: &TableInfo) -> TokenStream {
     let gen_set_and_params_field_toks: Vec<TokenStream> = info
         .columns
         .iter()
+        .filter(|col| col.relation.is_none()) // Skip relation field
         .map(|col| {
             let name_str = &col.name;
             let name = str_to_toks(&col.name);
@@ -233,6 +242,7 @@ fn gen_table_info(info: &TableInfo) -> TokenStream {
     let columns_toks = info
         .columns
         .iter()
+        .filter(|col| col.relation.is_none()) // Skip relation fields
         .map(|col| {
             let name = &col.name;
             let (ty_toks, is_not_null) = gen_column_type_and_is_not_null(&col);
@@ -294,20 +304,60 @@ fn gen_table_info(info: &TableInfo) -> TokenStream {
 }
 
 fn gen_impl_table_from_row(info: &TableInfo) -> TokenStream {
+    let mut index = 0usize; // The relation field will occupy the index, so the index needs to be calculated separately
     let field_toks: Vec<TokenStream> = info
         .columns
         .iter()
-        .enumerate()
-        .map(|(index, col)| {
+        .map(|col| {
             let name = str_to_toks(&col.name);
-            quote! {
-                #name: row.get(#index)?,
+
+            if let Some(relation) = &col.relation {
+                // Relation field
+                let relation_struct = str_to_toks(&relation.ty);
+                let relation_model = str_to_toks(&format!("{}Model", relation.ty)); // FIXME: Model rule must be defined in one place
+                let relation_field = str_to_toks(&relation.ref_col);
+                let relation_self_field_index = info.columns.iter().filter(|v| v.relation.is_none()).position(|v| v.name == relation.self_col).expect(&format!("Relation self_col '{}' not found in table '{}'", relation.self_col, info.struct_name));
+                let model_toks = quote! {
+                    #relation_model {
+                        #relation_field: rorm::Set(row.get(#relation_self_field_index)?),
+                        ..Default::default()
+                    }
+                };
+
+                if relation.is_vec {
+                    // Relation is vec
+                    quote! {
+                        #name: #relation_struct::find_many(conn, #model_toks, None).await?,
+                    }
+                } else {
+                    if relation.is_not_null {
+                        // Relation is normal type
+                        quote! {
+                            #name: #relation_struct::find(conn, #model_toks, None).await?,
+                        }
+                    } else {
+                        // Relation is option
+                        quote! {
+                            #name: #relation_struct::find_many(conn, #model_toks, None).await?.into_iter().next(),
+                        }
+                    }
+                }
+            } else {
+                // Normal field
+                let toks = quote! {
+                    #name: row.get(#index)?,
+                };
+
+                // Increase index
+                index += 1;
+
+                toks
             }
         })
         .collect();
 
     quote! {
-        fn from_row(row: rorm::pool::Row) -> rorm::error::Result<Self> {
+        async fn from_row(conn: &rorm::pool::Connection, row: rorm::pool::Row) -> rorm::error::Result<Self> {
             Ok(Self {
                 #(#field_toks)*
             })
@@ -481,7 +531,7 @@ fn gen_impl_table_find(info: &TableInfo) -> TokenStream {
 
             // Query
             let res = conn
-                .query_one_map(&sql, params, |row| Self::from_row(row))
+                .query_one_map(&sql, params, |row| Self::from_row(conn, row))
                 .await?;
 
             Ok(res)
@@ -501,7 +551,7 @@ fn gen_impl_table_find_many(info: &TableInfo) -> TokenStream {
 
             // Query
             let res_list = conn
-                .query_many_map(&sql, params, |row| Self::from_row(row))
+                .query_many_map(&sql, params, |row| Self::from_row(conn, row))
                 .await?;
 
             Ok(res_list)
