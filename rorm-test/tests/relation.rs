@@ -48,23 +48,27 @@ struct Extra {
 async fn test_normal() {
     run_async_test!((user_repo: Repository<User>, avatar_repo: Repository<Avatar>, _address_repo: Repository<Address>, _extra_repo: Repository<Extra>) => {
         let user_id = user_repo
-            .insert(UserModel {
+            .insert()
+            .model(UserModel {
                 name: "user1".into(),
                 ..Default::default()
             })
+            .one()
             .await
             .unwrap();
 
         let avatar_id = avatar_repo
-            .insert(AvatarModel {
+            .insert()
+            .model(AvatarModel {
                 user_id: user_id.into(),
                 url: "xxx".into(),
                 ..Default::default()
             })
+            .one()
             .await
             .unwrap();
 
-        let user = user_repo.find(user_id, None).await.unwrap();
+        let user = user_repo.find().filter_model(user_id).one().await.unwrap();
         assert_eq!(
             user,
             User {
@@ -80,9 +84,9 @@ async fn test_normal() {
             }
         );
 
-        avatar_repo.delete(avatar_id).await.unwrap();
+        avatar_repo.delete().filter_model(avatar_id).all().await.unwrap();
 
-        let res = user_repo.find(user_id, None).await;
+        let res = user_repo.find().filter_model(user_id).one().await;
         assert!(res.is_err());
     });
 }
@@ -91,29 +95,33 @@ async fn test_normal() {
 async fn test_option() {
     run_async_test!((user_repo: Repository<User>, avatar_repo: Repository<Avatar>, _address_repo: Repository<Address>, extra_repo: Repository<Extra>) => {
         let user_id = user_repo
-            .insert(UserModel {
+            .insert()
+            .model(UserModel {
                 name: "user1".into(),
                 ..Default::default()
             })
+            .one()
             .await
             .unwrap();
 
         let avatar_id = avatar_repo
-            .insert(AvatarModel {
+            .insert()
+            .model(AvatarModel {
                 user_id: user_id.into(),
                 url: "xxx".into(),
                 ..Default::default()
             })
+            .one()
             .await
             .unwrap();
 
-        let extra_id = extra_repo.insert(ExtraModel {
+        let extra_id = extra_repo.insert().model(ExtraModel {
             user_id: user_id.into(),
             height: 100.into(),
             ..Default::default()
-        }).await.unwrap();
+        }).one().await.unwrap();
 
-        let user = user_repo.find(user_id, None).await.unwrap();
+        let user = user_repo.find().filter_model(user_id).one().await.unwrap();
         assert_eq!(
             user,
             User {
@@ -133,9 +141,9 @@ async fn test_option() {
             }
         );
 
-        extra_repo.delete(extra_id).await.unwrap();
+        extra_repo.delete().filter_model(extra_id).all().await.unwrap();
 
-        let user = user_repo.find(user_id, None).await.unwrap();
+        let user = user_repo.find().filter_model(user_id).one().await.unwrap();
         assert_eq!(
             user,
             User {
@@ -157,23 +165,27 @@ async fn test_option() {
 async fn test_vec() {
     run_async_test!((user_repo: Repository<User>, avatar_repo: Repository<Avatar>, address_repo: Repository<Address>, _extra_repo: Repository<Extra>) => {
         let user_id = user_repo
-            .insert(UserModel {
+            .insert()
+            .model(UserModel {
                 name: "user1".into(),
                 ..Default::default()
             })
+            .one()
             .await
             .unwrap();
 
         let avatar_id = avatar_repo
-            .insert(AvatarModel {
+            .insert()
+            .model(AvatarModel {
                 user_id: user_id.into(),
                 url: "xxx".into(),
                 ..Default::default()
             })
+            .one()
             .await
             .unwrap();
 
-        let address_ids = address_repo.insert_many([
+        let address_ids = address_repo.insert().models([
             AddressModel {
                 user_id: user_id.into(),
                 city: "a".into(),
@@ -186,9 +198,9 @@ async fn test_vec() {
                 street: "b".into(),
                 ..Default::default()
             },
-        ]).await.unwrap();
+        ]).all().await.unwrap();
 
-        let user = user_repo.find(user_id, None).await.unwrap();
+        let user = user_repo.find().filter_model(user_id).one().await.unwrap();
         assert_eq!(
             user,
             User {
@@ -217,9 +229,9 @@ async fn test_vec() {
             }
         );
 
-        address_repo.delete(address_ids[0]).await.unwrap();
+        address_repo.delete().filter_model(address_ids[0]).all().await.unwrap();
 
-        let user = user_repo.find(user_id, None).await.unwrap();
+        let user = user_repo.find().filter_model(user_id).one().await.unwrap();
         assert_eq!(
             user,
             User {
@@ -242,9 +254,9 @@ async fn test_vec() {
             }
         );
 
-        address_repo.delete(address_ids[1]).await.unwrap();
+        address_repo.delete().filter_model(address_ids[1]).all().await.unwrap();
 
-        let user = user_repo.find(user_id, None).await.unwrap();
+        let user = user_repo.find().filter_model(user_id).one().await.unwrap();
         assert_eq!(
             user,
             User {

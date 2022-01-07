@@ -29,14 +29,6 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
         .collect();
     let info_toks = gen_table_info(&info);
     let from_row_toks = gen_impl_table_from_row(&info);
-    let init_toks = gen_impl_table_init();
-    let insert_toks = gen_impl_table_insert(&info);
-    let insert_many_toks = gen_impl_table_insert_many(&info);
-    let delete_toks = gen_impl_table_delete(&info);
-    let update_toks = gen_impl_table_update(&info);
-    let find_toks = gen_impl_table_find(&info);
-    let find_many_toks = gen_impl_table_find_many(&info);
-    let gen_find_sql_and_params_toks = gen_impl_table_gen_find_sql_and_params(&info);
 
     quote! {
         #[rorm::async_trait]
@@ -50,50 +42,8 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
 
             const INFO: rorm::TableInfo = #info_toks;
 
-            // fn from_row(row: rorm::pool::Row) -> rorm::error::Result<Self>
+            // async fn from_row(conn: &Connection, row: Row) -> Result<Self>;
             #from_row_toks
-
-            // async fn init(conn: &Connection) -> Result<()>;
-            #init_toks
-
-            // async fn insert<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<#ty>
-            // where
-            //     M: Into<#model_name>,
-            #insert_toks
-
-            // async fn insert_many<T, M>(conn: &rorm::pool::Connection, models: T) -> rorm::error::Result<Vec<#primary_key_type>>
-            // where
-            //     T: IntoIterator<Item = M>,
-            //     M: Into<#model_name>,
-            #insert_many_toks
-
-            // async fn delete<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<()>
-            // where
-            //     M: Into<#model_name>,
-            #delete_toks
-
-            // async fn update<SM, DM>(conn: &rorm::pool::Connection, condition: CM, set: SM) -> rorm::error::Result<()>
-            // where
-            //     CM: Into<#model_name>,
-            //     SM: Into<#model_name>,
-            #update_toks
-
-            // async fn find<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Self>
-            // where
-            //    M: Into<#model_name>,
-            #find_toks
-
-            // async fn find_many<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Vec<Self>>
-            // where
-            //    M: Into<#model_name>,
-            #find_many_toks
-        }
-
-        impl #struct_name {
-            // fn gen_find_sql_and_params<M>(model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<(String, Vec<rorm::pool::Value>)>
-            // where
-            //    M: Into<#model_name>,
-            #gen_find_sql_and_params_toks
         }
     }
 }
@@ -124,7 +74,7 @@ fn gen_model(info: &TableInfo) -> TokenStream {
             }
         })
         .collect();
-    let gen_where_and_params_field_toks: Vec<TokenStream> = info
+    let into_set_pairs_field_toks: Vec<TokenStream> = info
         .columns
         .iter()
         .filter(|col| col.relation.is_none()) // Skip relation field
@@ -133,29 +83,7 @@ fn gen_model(info: &TableInfo) -> TokenStream {
             let name = str_to_toks(&col.name);
             quote! {
                 if let rorm::Set(v) = self.#name {
-                    let c = rorm::query::eq!(#name_str, "?");
-                    cond = if let Some(cond) = cond {
-                        Some(rorm::query::and!(cond, c))
-                    } else {
-                        Some(c)
-                    };
-
-                    params.push(v.to_value());
-                }
-            }
-        })
-        .collect();
-    let gen_set_and_params_field_toks: Vec<TokenStream> = info
-        .columns
-        .iter()
-        .filter(|col| col.relation.is_none()) // Skip relation field
-        .map(|col| {
-            let name_str = &col.name;
-            let name = str_to_toks(&col.name);
-            quote! {
-                if let rorm::Set(v) = self.#name {
-                    params.push(v.to_value());
-                    sets.push(#name_str);
+                    arr.push((#name_str, v.to_value()));
                 }
             }
         })
@@ -208,30 +136,20 @@ fn gen_model(info: &TableInfo) -> TokenStream {
             }
         }
 
-        // Impl model
-        impl #model_name {
-            // gen_where_and_params
-            pub fn gen_where_and_params(self) -> (Option<rorm::query::Where>, Vec<rorm::pool::Value>) {
+        // Impl trait
+        impl rorm::Model<#primary_key_types> for #model_name {
+            fn into_set_pairs(self) -> Vec<(&'static str, rorm::pool::Value)> {
                 use rorm::pool::ToValue;
 
-                let mut params = Vec::new();
-                let mut cond = None;
+                let mut arr = vec![];
 
-                #(#gen_where_and_params_field_toks)*
+                #(#into_set_pairs_field_toks)*
 
-                (cond, params)
+                arr
             }
 
-            // gen_set_and_params
-            pub fn gen_set_and_params(self) -> (Vec<&'static str>, Vec<rorm::pool::Value>) {
-                use rorm::pool::ToValue;
-
-                let mut sets = Vec::new();
-                let mut params = Vec::new();
-
-                #(#gen_set_and_params_field_toks)*
-
-                (sets, params)
+            fn to_primary_key(id: u64) -> #primary_key_types {
+                id as #primary_key_types
             }
         }
     }
@@ -327,18 +245,19 @@ fn gen_impl_table_from_row(info: &TableInfo) -> TokenStream {
                 if relation.is_vec {
                     // Relation is vec
                     quote! {
-                        #name: #relation_struct::find_many(conn, #model_toks, None).await?,
+                        #name: #relation_struct::find().filter_model(#model_toks).execute(conn).await?,
                     }
                 } else {
                     if relation.is_not_null {
                         // Relation is normal type
                         quote! {
-                            #name: #relation_struct::find(conn, #model_toks, None).await?,
+                            #name: #relation_struct::find().filter_model(#model_toks).execute(conn).await?.into_iter().next()
+                                .ok_or(rorm::error::database!("Relation {}-{} > {}-{} fond empty rows", std::any::type_name::<Self>(), stringify!(#name), std::any::type_name::<#relation_struct>(), stringify!(#relation_field)))?,
                         }
                     } else {
                         // Relation is option
                         quote! {
-                            #name: #relation_struct::find_many(conn, #model_toks, None).await?.into_iter().next(),
+                            #name: #relation_struct::find().filter_model(#model_toks).execute(conn).await?.into_iter().next(),
                         }
                     }
                 }
@@ -361,234 +280,6 @@ fn gen_impl_table_from_row(info: &TableInfo) -> TokenStream {
             Ok(Self {
                 #(#field_toks)*
             })
-        }
-    }
-}
-
-fn gen_impl_table_init() -> TokenStream {
-    quote! {
-        async fn init(conn: &rorm::pool::Connection) -> rorm::error::Result<()> {
-            conn.init_table(&Self::INFO).await?;
-
-            Ok(())
-        }
-    }
-}
-
-fn gen_impl_table_insert(info: &TableInfo) -> TokenStream {
-    let primary_key_type = gen_primary_key_type_toks(&info.columns, &info.primary_keys);
-    let model_name = str_to_toks(&info.model_name);
-
-    quote! {
-        async fn insert<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<#primary_key_type>
-        where
-            M: Into<#model_name> + Send,
-        {
-            let model: #model_name = model.into();
-            let (cols, params) = model.gen_set_and_params();
-            let sql = rorm::query::QueryBuilder::insert(Self::TABLE_NAME)
-                .columns(&cols)
-                .values(cols.iter().map(|_| "?".into()).collect::<Vec<_>>())
-                .build()?;
-            let key = conn
-                .execute_one(&sql, params)
-                .await?;
-
-            // FIXME: Union index is not currently supported
-            Ok(key as #primary_key_type)
-        }
-    }
-}
-
-fn gen_impl_table_insert_many(info: &TableInfo) -> TokenStream {
-    let primary_key_type = gen_primary_key_type_toks(&info.columns, &info.primary_keys);
-    let model_name = str_to_toks(&info.model_name);
-
-    quote! {
-        async fn insert_many<T, M>(conn: &rorm::pool::Connection, models: T) -> rorm::error::Result<Vec<#primary_key_type>>
-        where
-            T: IntoIterator<Item = M> + Send,
-            M: Into<#model_name> + Send,
-        {
-            let mut sql = Option::<String>::None;
-            let mut first_cols = Option::<Vec<&'static str>>::None;
-            let mut params_list = Vec::new();
-
-            for model in models.into_iter() {
-                let model: #model_name = model.into();
-                let (cols, params) = model.gen_set_and_params();
-
-                // Generate sql
-                if sql.is_none() {
-                    sql = Some(rorm::query::QueryBuilder::insert(Self::TABLE_NAME)
-                        .columns(&cols)
-                        .values(cols.iter().map(|_| "?".into()).collect::<Vec<_>>())
-                        .build()?);
-                }
-
-                // Check model cols
-                if let Some(first_cols) = &first_cols {
-                    if first_cols != &cols {
-                        return Err(rorm::error::argument!("Model insert rows mismatch, first_cols: {:?}, recevied: {:?}", first_cols, cols));
-                    }
-                } else {
-                    first_cols = Some(cols);
-                }
-
-                // Append params
-                params_list.push(params);
-            }
-
-            if let Some(sql) = sql {
-                let keys = conn.execute_many(&sql, params_list).await?;
-                Ok(keys.into_iter().map(|k| k as #primary_key_type).collect())
-            } else {
-                Ok(Vec::new())
-            }
-        }
-    }
-}
-
-fn gen_impl_table_delete(info: &TableInfo) -> TokenStream {
-    let model_name = str_to_toks(&info.model_name);
-
-    quote! {
-        async fn delete<M>(conn: &rorm::pool::Connection, model: M) -> rorm::error::Result<()>
-        where
-            M: Into<#model_name> + Send,
-        {
-            let model: #model_name = model.into();
-            let mut sql_builder = rorm::query::QueryBuilder::delete(Self::TABLE_NAME);
-            let (cond, params) = model.gen_where_and_params();
-
-            // Set builder
-            if let Some(cond) = cond {
-                sql_builder.where_cond(cond);
-            }
-
-            // Build sql
-            let sql = sql_builder.build()?;
-
-            // Execute
-            conn.execute_one(&sql, params).await?;
-
-            Ok(())
-        }
-    }
-}
-
-fn gen_impl_table_update(info: &TableInfo) -> TokenStream {
-    let model_name = str_to_toks(&info.model_name);
-
-    quote! {
-        async fn update<CM, SM>(conn: &rorm::pool::Connection, condition: CM, set: SM) -> rorm::error::Result<()>
-        where
-            CM: Into<#model_name> + Send,
-            SM: Into<#model_name> + Send,
-        {
-            let condition: #model_name = condition.into();
-            let set: #model_name = set.into();
-            let mut sql_builder = rorm::query::QueryBuilder::update(Self::TABLE_NAME);
-            let (cond, mut cond_params) = condition.gen_where_and_params();
-            let (set_cols, set_params) = set.gen_set_and_params();
-
-            // Set builder
-            if let Some(cond) = cond {
-                sql_builder.where_cond(cond);
-            }
-
-            for set_col in set_cols {
-                sql_builder.set(set_col, "?".into());
-            }
-
-            // Build sql
-            let sql = sql_builder.build()?;
-
-            let mut params = set_params;
-            params.append(&mut cond_params);
-
-            // Execute
-            conn.execute_one(&sql, params).await?;
-
-            Ok(())
-        }
-    }
-}
-
-fn gen_impl_table_find(info: &TableInfo) -> TokenStream {
-    let model_name = str_to_toks(&info.model_name);
-
-    quote! {
-        async fn find<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Self>
-        where
-            M: Into<#model_name> + Send,
-        {
-            let (sql, params) = Self::gen_find_sql_and_params(model, option)?;
-
-            // Query
-            let res = conn
-                .query_one_map(&sql, params, |row| Self::from_row(conn, row))
-                .await?;
-
-            Ok(res)
-        }
-    }
-}
-
-fn gen_impl_table_find_many(info: &TableInfo) -> TokenStream {
-    let model_name = str_to_toks(&info.model_name);
-
-    quote! {
-        async fn find_many<M>(conn: &rorm::pool::Connection, model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<Vec<Self>>
-        where
-            M: Into<#model_name> + Send,
-        {
-            let (sql, params) = Self::gen_find_sql_and_params(model, option)?;
-
-            // Query
-            let res_list = conn
-                .query_many_map(&sql, params, |row| Self::from_row(conn, row))
-                .await?;
-
-            Ok(res_list)
-        }
-    }
-}
-
-fn gen_impl_table_gen_find_sql_and_params(info: &TableInfo) -> TokenStream {
-    let model_name = str_to_toks(&info.model_name);
-
-    quote! {
-        fn gen_find_sql_and_params<M>(model: M, option: Option<rorm::FindOption>) -> rorm::error::Result<(String, Vec<rorm::pool::Value>)>
-        where
-            M: Into<#model_name>,
-        {
-            let model: #model_name = model.into();
-            let mut sql_builder = rorm::query::QueryBuilder::select(Self::TABLE_NAME);
-            let (cond, params) = model.gen_where_and_params();
-            let already_has_cond = cond.is_some();
-
-            // Set builder
-            sql_builder.columns(Self::COLUMNS);
-            if let Some(cond) = cond {
-                sql_builder.where_cond(cond);
-            }
-
-            // Set option
-            if let Some(option) = option {
-                // Check model condition
-                if already_has_cond {
-                    return Err(rorm::error::argument!("Where condition conflict, model must be empty when option.where_cond was set; model: {}", std::any::type_name::<#model_name>()));
-                }
-
-                // Update builder
-                option.update_sql_builder(&mut sql_builder);
-            }
-
-            // Build sql
-            let sql = sql_builder.build()?;
-
-            Ok((sql, params))
         }
     }
 }

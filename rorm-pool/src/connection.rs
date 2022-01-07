@@ -8,32 +8,22 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn new(driver: Arc<dyn Driver>) -> Self {
-        Self { driver }
+    /// # Open connect
+    ///
+    /// Sqlite example:
+    ///     - `connect("sqlite://memory")`
+    ///     - `connect("sqlite:///tmp/db.sqlite")`
+    pub fn connect(url: &str) -> Result<Self> {
+        #[cfg(feature = "sqlite")]
+        if url.starts_with("sqlite://") {
+            return Self::connect_sqlite(url);
+        }
+
+        Err(rorm_error::connection!("Unsupport url `{}`", url))
     }
 
-    pub async fn execute_one(&self, sql: &str, params: Vec<Value>) -> Result<u64> {
-        Ok(self.driver.execute_one(sql, params).await?)
-    }
-
-    pub async fn execute_many(&self, sql: &str, params: Vec<Vec<Value>>) -> Result<Vec<u64>> {
-        Ok(self.driver.execute_many(sql, params).await?)
-    }
-
-    pub async fn query_one_map<T, Fun, Fut>(
-        &self,
-        sql: &str,
-        params: Vec<Value>,
-        map: Fun,
-    ) -> Result<T>
-    where
-        Fun: FnOnce(Row) -> Fut,
-        Fut: Future<Output = Result<T>>,
-    {
-        let row = self.driver.query_one(sql, params).await?;
-        let res = map(row).await?;
-
-        Ok(res)
+    pub async fn execute_many(&self, pairs: Vec<(String, Vec<Vec<Value>>)>) -> Result<Vec<u64>> {
+        Ok(self.driver.execute_many(pairs).await?)
     }
 
     pub async fn query_many_map<T, Fun, Fut>(
@@ -60,5 +50,22 @@ impl Connection {
         self.driver.init_table(info).await?;
 
         Ok(())
+    }
+
+    #[cfg(feature = "sqlite")]
+    fn connect_sqlite(url: &str) -> Result<Self> {
+        let path = &url[9..];
+        let conn = if path == "memory" {
+            rusqlite::Connection::open_in_memory()
+                .map_err(|e| rorm_error::connection!("Sqlite open_in_memory error: {}", e))?
+        } else {
+            rusqlite::Connection::open(path)
+                .map_err(|e| rorm_error::connection!("Sqlite open `{}` error: {}", path, e))?
+        };
+        let driver = crate::drivers::sqlite::SqliteConnProxy::new(conn);
+
+        Ok(Self {
+            driver: Arc::new(driver),
+        })
     }
 }

@@ -1,14 +1,14 @@
-use rorm_pool::{sqlite, Value};
+use rorm_pool::{Connection, Value};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
-    let conn = sqlite::Builder::memory().connect()?;
+    let conn = Connection::connect("sqlite://memory")?;
 
     // Init table
     {
-        conn.execute_one("CREATE TABLE ta (a INTEGER)", vec![])
+        conn.execute_many(vec![("CREATE TABLE ta (a INTEGER)".into(), vec![])])
             .await?;
     }
 
@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let params: Vec<Vec<Value>> = (0..10000).map(|i| vec![Value::U32(i)]).collect();
         let ids = conn
-            .execute_many("INSERT INTO ta (a) VALUES (?)", params)
+            .execute_many(vec![("INSERT INTO ta (a) VALUES (?)".into(), params)])
             .await?;
         assert_eq!(ids, (1..10000 + 1).collect::<Vec<u64>>());
     }

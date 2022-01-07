@@ -1,12 +1,12 @@
 use rorm_error::Result;
 
-use crate::{QueryValue, Where};
+use crate::{Filter, QueryValue, Where};
 
 #[derive(Debug, Default)]
 pub struct UpdateBuilder {
     table: String,
     kvs: Vec<(String, String)>,
-    where_cond: Option<Where>,
+    filter: Filter,
 }
 
 impl UpdateBuilder {
@@ -33,7 +33,7 @@ impl UpdateBuilder {
     ///     .build()
     ///     .unwrap();
     ///
-    /// assert_eq!(&sql, "UPDATE ta SET a = 1, b = 'abc'");
+    /// assert_eq!(&sql, "UPDATE ta SET a = 1, b = 'abc' ");
     /// ```
     pub fn set<S>(&mut self, col: S, val: QueryValue) -> &mut Self
     where
@@ -55,7 +55,7 @@ impl UpdateBuilder {
     ///     .build()
     ///     .unwrap();
     ///
-    /// assert_eq!(&sql, "UPDATE ta SET a = 1, b = 'abc'");
+    /// assert_eq!(&sql, "UPDATE ta SET a = 1, b = 'abc' ");
     /// ```
     pub fn sets<T, S>(&mut self, kvs: T) -> &mut Self
     where
@@ -66,26 +66,6 @@ impl UpdateBuilder {
             .into_iter()
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect();
-        self
-    }
-
-    /// Set where condition
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rorm_query::{QueryBuilder, sql_str, and, lt, gt};
-    ///
-    /// let sql = QueryBuilder::update("ta")
-    ///     .sets([("a", 1.into()), ("b", sql_str("abc"))])
-    ///     .where_cond(and!(gt!("a", 1), lt!("b", 5)))
-    ///     .build()
-    ///     .unwrap();
-    ///
-    /// assert_eq!(&sql, "UPDATE ta SET a = 1, b = 'abc' WHERE ((a > 1) AND (b < 5))");
-    /// ```
-    pub fn where_cond(&mut self, cond: Where) -> &mut Self {
-        self.where_cond = Some(cond);
         self
     }
 
@@ -110,11 +90,8 @@ impl UpdateBuilder {
                 .join(", "),
         );
 
-        // Build where
-        if let Some(whe) = &self.where_cond {
-            parts.push("WHERE".into());
-            parts.push(whe.to_string());
-        }
+        // Build filter
+        parts.push(self.filter.build()?);
 
         Ok(parts.join(" "))
     }
@@ -128,3 +105,5 @@ impl UpdateBuilder {
         Ok(())
     }
 }
+
+crate::lazy_impl_filer_for_struct! { UpdateBuilder }

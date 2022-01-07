@@ -1,11 +1,11 @@
 use rorm_error::Result;
 
-use crate::Where;
+use crate::{Filter, Where};
 
 #[derive(Debug, Default)]
 pub struct DeleteBuilder {
     table: String,
-    where_cond: Option<Where>,
+    filter: Filter,
 }
 
 impl DeleteBuilder {
@@ -17,25 +17,6 @@ impl DeleteBuilder {
             table: table.to_string(),
             ..Default::default()
         }
-    }
-
-    /// Set where condition
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rorm_query::{QueryBuilder, and, lt, gt};
-    ///
-    /// let sql = QueryBuilder::delete("ta")
-    ///     .where_cond(and!(gt!("a", 1), lt!("b", 5)))
-    ///     .build()
-    ///     .unwrap();
-    ///
-    /// assert_eq!(&sql, "DELETE FROM ta WHERE ((a > 1) AND (b < 5))");
-    /// ```
-    pub fn where_cond(&mut self, cond: Where) -> &mut Self {
-        self.where_cond = Some(cond);
-        self
     }
 
     /// Build sql
@@ -52,11 +33,8 @@ impl DeleteBuilder {
         parts.push("FROM".into());
         parts.push(self.table.clone());
 
-        // Build where
-        if let Some(whe) = &self.where_cond {
-            parts.push("WHERE".into());
-            parts.push(whe.to_string());
-        }
+        // Build filter
+        parts.push(self.filter.build()?);
 
         Ok(parts.join(" "))
     }
@@ -66,3 +44,5 @@ impl DeleteBuilder {
         Ok(())
     }
 }
+
+crate::lazy_impl_filer_for_struct! { DeleteBuilder }

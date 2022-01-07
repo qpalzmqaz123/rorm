@@ -1,6 +1,11 @@
 use std::marker::PhantomData;
 
-use crate::{error::Result, pool::Connection, Entity, FindOption};
+use crate::{
+    error::Result,
+    pool::{Connection, Value},
+    query::Where,
+    DeleteBuilder, Entity, FindBuilder, InsertBuilder, UpdateBuilder,
+};
 
 #[derive(Clone)]
 pub struct Repository<E: Entity> {
@@ -8,7 +13,7 @@ pub struct Repository<E: Entity> {
     _marker: PhantomData<E>,
 }
 
-impl<E: Entity> Repository<E> {
+impl<E: Entity + Send> Repository<E> {
     pub fn new(conn: Connection) -> Self {
         Self {
             conn,
@@ -22,47 +27,237 @@ impl<E: Entity> Repository<E> {
         Ok(())
     }
 
-    pub async fn insert<M>(&self, model: M) -> Result<E::PrimaryKey>
-    where
-        M: Into<E::Model> + Send,
-    {
-        Ok(E::insert(&self.conn, model).await?)
+    pub fn insert(&self) -> RepoInsertBuilder<E> {
+        RepoInsertBuilder::new(self.conn.clone())
     }
 
-    pub async fn insert_many<T, M>(&self, models: T) -> Result<Vec<E::PrimaryKey>>
-    where
-        T: IntoIterator<Item = M> + Send,
-        M: Into<E::Model> + Send,
-    {
-        Ok(E::insert_many(&self.conn, models).await?)
+    pub fn delete(&self) -> RepoDeleteBuilder<E> {
+        RepoDeleteBuilder::new(self.conn.clone())
     }
 
-    pub async fn delete<M>(&self, model: M) -> Result<()>
-    where
-        M: Into<E::Model> + Send,
-    {
-        Ok(E::delete(&self.conn, model).await?)
+    pub fn update(&self) -> RepoUpdateBuilder<E> {
+        RepoUpdateBuilder::new(self.conn.clone())
     }
 
-    pub async fn update<CM, SM>(&self, condition: CM, set: SM) -> Result<()>
-    where
-        CM: Into<E::Model> + Send,
-        SM: Into<E::Model> + Send,
-    {
-        Ok(E::update(&self.conn, condition, set).await?)
+    pub fn find(&self) -> RepoFindBuilder<E> {
+        RepoFindBuilder::new(self.conn.clone())
+    }
+}
+
+pub struct RepoInsertBuilder<E: Entity> {
+    conn: Connection,
+    builder: InsertBuilder<E>,
+}
+
+impl<E: Entity> RepoInsertBuilder<E> {
+    pub fn new(conn: Connection) -> Self {
+        Self {
+            conn,
+            builder: InsertBuilder::new(),
+        }
     }
 
-    pub async fn find<M>(&self, model: M, option: Option<FindOption>) -> Result<E>
+    pub fn model<I>(mut self, model: I) -> Self
     where
-        M: Into<E::Model> + Send,
+        I: Into<E::Model>,
     {
-        Ok(E::find(&self.conn, model, option).await?)
+        self.builder = self.builder.model(model);
+        self
     }
 
-    pub async fn find_many<M>(&self, model: M, option: Option<FindOption>) -> Result<Vec<E>>
+    pub fn models<L, I>(mut self, models: L) -> Self
     where
-        M: Into<E::Model> + Send,
+        L: IntoIterator<Item = I>,
+        I: Into<E::Model>,
     {
-        Ok(E::find_many(&self.conn, model, option).await?)
+        self.builder = self.builder.models(models);
+        self
+    }
+
+    pub async fn one(self) -> Result<E::PrimaryKey> {
+        Ok(self
+            .builder
+            .execute(&self.conn)
+            .await?
+            .into_iter()
+            .next()
+            .ok_or(crate::error::database!(
+                "Repository insert one return empty ids"
+            ))?)
+    }
+
+    pub async fn all(self) -> Result<Vec<E::PrimaryKey>> {
+        Ok(self.builder.execute(&self.conn).await?)
+    }
+}
+
+pub struct RepoDeleteBuilder<E: Entity> {
+    conn: Connection,
+    builder: DeleteBuilder<E>,
+}
+
+impl<E: Entity> RepoDeleteBuilder<E> {
+    pub fn new(conn: Connection) -> Self {
+        Self {
+            conn,
+            builder: DeleteBuilder::new(),
+        }
+    }
+
+    pub fn filter_model<I>(mut self, model: I) -> Self
+    where
+        I: Into<E::Model>,
+    {
+        self.builder = self.builder.filter_model(model);
+        self
+    }
+
+    pub fn filter(mut self, cond: Where, params: Vec<Value>) -> Self {
+        self.builder = self.builder.filter(cond, params);
+        self
+    }
+
+    pub fn group_by(mut self, col: &str) -> Self {
+        self.builder = self.builder.group_by(col);
+        self
+    }
+
+    pub fn order_by(mut self, col: &str, is_asc: bool) -> Self {
+        self.builder = self.builder.order_by(col, is_asc);
+        self
+    }
+
+    pub async fn limit(self, limit: u64, offset: u64) -> Result<()> {
+        Ok(self
+            .builder
+            .limit(limit, offset)
+            .execute(&self.conn)
+            .await?)
+    }
+
+    pub async fn one(self) -> Result<()> {
+        Ok(self.builder.limit(1, 0).execute(&self.conn).await?)
+    }
+
+    pub async fn all(self) -> Result<()> {
+        Ok(self.builder.execute(&self.conn).await?)
+    }
+}
+
+pub struct RepoUpdateBuilder<E: Entity> {
+    conn: Connection,
+    builder: UpdateBuilder<E>,
+}
+
+impl<E: Entity> RepoUpdateBuilder<E> {
+    pub fn new(conn: Connection) -> Self {
+        Self {
+            conn,
+            builder: UpdateBuilder::new(),
+        }
+    }
+
+    pub fn set_model<I>(mut self, model: I) -> Self
+    where
+        I: Into<E::Model>,
+    {
+        self.builder = self.builder.set_model(model);
+        self
+    }
+
+    pub fn filter_model<I>(mut self, model: I) -> Self
+    where
+        I: Into<E::Model>,
+    {
+        self.builder = self.builder.filter_model(model);
+        self
+    }
+
+    pub fn filter(mut self, cond: Where, params: Vec<Value>) -> Self {
+        self.builder = self.builder.filter(cond, params);
+        self
+    }
+
+    pub fn group_by(mut self, col: &str) -> Self {
+        self.builder = self.builder.group_by(col);
+        self
+    }
+
+    pub fn order_by(mut self, col: &str, is_asc: bool) -> Self {
+        self.builder = self.builder.order_by(col, is_asc);
+        self
+    }
+
+    pub async fn limit(self, limit: u64, offset: u64) -> Result<()> {
+        Ok(self
+            .builder
+            .limit(limit, offset)
+            .execute(&self.conn)
+            .await?)
+    }
+
+    pub async fn one(self) -> Result<()> {
+        Ok(self.builder.limit(1, 0).execute(&self.conn).await?)
+    }
+
+    pub async fn all(self) -> Result<()> {
+        Ok(self.builder.execute(&self.conn).await?)
+    }
+}
+
+pub struct RepoFindBuilder<E: Entity> {
+    conn: Connection,
+    builder: FindBuilder<E>,
+}
+
+impl<E: Entity> RepoFindBuilder<E> {
+    pub fn new(conn: Connection) -> Self {
+        Self {
+            conn,
+            builder: FindBuilder::new(),
+        }
+    }
+
+    pub fn filter_model<I>(mut self, model: I) -> Self
+    where
+        I: Into<E::Model>,
+    {
+        self.builder = self.builder.filter_model(model);
+        self
+    }
+
+    pub fn filter(mut self, cond: Where, params: Vec<Value>) -> Self {
+        self.builder = self.builder.filter(cond, params);
+        self
+    }
+
+    pub fn group_by(mut self, col: &str) -> Self {
+        self.builder = self.builder.group_by(col);
+        self
+    }
+
+    pub fn order_by(mut self, col: &str, is_asc: bool) -> Self {
+        self.builder = self.builder.order_by(col, is_asc);
+        self
+    }
+
+    pub async fn limit(self, limit: u64, offset: u64) -> Result<Vec<E>> {
+        Ok(self
+            .builder
+            .limit(limit, offset)
+            .execute(&self.conn)
+            .await?)
+    }
+
+    pub async fn one(self) -> Result<E> {
+        let list = self.builder.limit(1, 0).execute(&self.conn).await?;
+
+        list.into_iter()
+            .next()
+            .ok_or(crate::error::database!("Return empty rows"))
+    }
+
+    pub async fn all(self) -> Result<Vec<E>> {
+        Ok(self.builder.execute(&self.conn).await?)
     }
 }

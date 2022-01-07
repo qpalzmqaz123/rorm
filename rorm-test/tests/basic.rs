@@ -1,4 +1,4 @@
-use rorm::{Entity, FindOption, Repository};
+use rorm::{Entity, Repository};
 use rorm_test::run_async_test;
 
 #[derive(Debug, PartialEq, Eq, Entity)]
@@ -130,21 +130,23 @@ async fn test_info() {
 async fn test_unique() {
     run_async_test!((repo: Repository<User>) => {
         // First insert
-        repo.insert(UserModel {
+        repo.insert().model(UserModel {
             name: "bob".into(),
             address: Address::new("a", "b").into(),
             ..Default::default()
         })
+        .one()
         .await
         .unwrap();
 
         // Second insert
         let res = repo
-            .insert(UserModel {
+            .insert().model(UserModel {
                 name: "bob".into(),
                 address: Address::new("a", "b").into(),
                 ..Default::default()
             })
+            .one()
             .await;
 
         // Assert error
@@ -157,14 +159,15 @@ async fn test_default() {
     run_async_test!((repo: Repository<User>) => {
         // Insert without name
         let id = repo
-            .insert(UserModel {
+            .insert().model(UserModel {
                 address: Address::new("a", "b").into(),
                 ..Default::default()
             })
+            .one()
             .await
             .unwrap();
 
-        let user = repo.find(id, None).await.unwrap();
+        let user = repo.find().filter_model(id).one().await.unwrap();
 
         assert_eq!(
             user,
@@ -183,15 +186,16 @@ async fn test_option() {
     run_async_test!((repo: Repository<User>) => {
         // Insert without name
         let id = repo
-            .insert(UserModel {
+            .insert().model(UserModel {
                 address: Address::new("a", "b").into(),
                 email: Some("abc").into(),
                 ..Default::default()
             })
+            .one()
             .await
             .unwrap();
 
-        let user = repo.find(id, None).await.unwrap();
+        let user = repo.find().filter_model(id).one().await.unwrap();
 
         assert_eq!(
             user,
@@ -221,18 +225,14 @@ async fn test_insert_many() {
             },
         ];
 
-        let ids = repo.insert_many(users).await.unwrap();
+        let ids = repo.insert().models(users).all().await.unwrap();
 
         assert_eq!(ids, vec![1, 2]);
 
         let find_users = repo
-            .find_many(
-                UserModel::default(),
-                Some(FindOption {
-                    orders: vec![("id".into(), false)],
-                    ..Default::default()
-                }),
-            )
+            .find()
+            .order_by("id", false)
+            .all()
             .await
             .unwrap();
 
@@ -253,5 +253,231 @@ async fn test_insert_many() {
                 },
             ]
         )
+    });
+}
+
+#[tokio::test]
+async fn test_delete() {
+    run_async_test!((repo: Repository<User>) => {
+        let users = [
+            UserModel {
+                name: "a".into(),
+                address: Address::new("a", "b").into(),
+                ..Default::default()
+            },
+            UserModel {
+                name: "b".into(),
+                address: Address::new("a", "b").into(),
+                ..Default::default()
+            },
+            UserModel {
+                name: "c".into(),
+                address: Address::new("a", "b").into(),
+                ..Default::default()
+            },
+            UserModel {
+                name: "d".into(),
+                address: Address::new("a", "b").into(),
+                ..Default::default()
+            },
+        ];
+
+        repo.insert().models(users).all().await.unwrap();
+
+        // Delete one
+        repo.delete().filter_model(UserModel {name: "a".into(), ..Default::default()}).one().await.unwrap();
+
+        assert_eq!(
+            repo.find().all().await.unwrap(),
+            vec![
+                User {
+                    id: 2,
+                    name: "b".into(),
+                    email: None,
+                    address: Address::new("a", "b"),
+                },
+                User {
+                    id: 3,
+                    name: "c".into(),
+                    email: None,
+                    address: Address::new("a", "b"),
+                },
+                User {
+                    id: 4,
+                    name: "d".into(),
+                    email: None,
+                    address: Address::new("a", "b"),
+                },
+            ]
+        );
+
+        // Delete limit
+        repo.delete().order_by("id", false).limit(1, 0).await.unwrap();
+
+        assert_eq!(
+            repo.find().all().await.unwrap(),
+            vec![
+                User {
+                    id: 2,
+                    name: "b".into(),
+                    email: None,
+                    address: Address::new("a", "b"),
+                },
+                User {
+                    id: 3,
+                    name: "c".into(),
+                    email: None,
+                    address: Address::new("a", "b"),
+                },
+            ]
+        );
+
+        // Delete all
+        repo.delete().all().await.unwrap();
+
+        assert_eq!(
+            repo.find().all().await.unwrap(),
+            vec![]
+        );
+    });
+}
+
+#[tokio::test]
+async fn test_update() {
+    run_async_test!((repo: Repository<User>) => {
+        let users = [
+            UserModel {
+                name: "a".into(),
+                address: Address::new("a", "b").into(),
+                ..Default::default()
+            },
+            UserModel {
+                name: "b".into(),
+                address: Address::new("a", "b").into(),
+                ..Default::default()
+            },
+            UserModel {
+                name: "c".into(),
+                address: Address::new("a", "b").into(),
+                ..Default::default()
+            },
+            UserModel {
+                name: "d".into(),
+                address: Address::new("a", "b").into(),
+                ..Default::default()
+            },
+        ];
+
+        repo.insert().models(users).all().await.unwrap();
+
+        // Update one
+        repo
+            .update()
+            .set_model(UserModel {address: Address::new("c", "d").into(), ..Default::default()})
+            .filter_model(UserModel {name: "a".into(), ..Default::default()})
+            .one().await.unwrap();
+
+        assert_eq!(
+            repo.find().all().await.unwrap(),
+            vec![
+                User {
+                    id: 1,
+                    name: "a".into(),
+                    email: None,
+                    address: Address::new("c", "d"),
+                },
+                User {
+                    id: 2,
+                    name: "b".into(),
+                    email: None,
+                    address: Address::new("a", "b"),
+                },
+                User {
+                    id: 3,
+                    name: "c".into(),
+                    email: None,
+                    address: Address::new("a", "b"),
+                },
+                User {
+                    id: 4,
+                    name: "d".into(),
+                    email: None,
+                    address: Address::new("a", "b"),
+                },
+            ]
+        );
+
+        // Update limit
+        repo
+            .update()
+            .set_model(UserModel {address: Address::new("c", "d").into(), ..Default::default()})
+            .order_by("id", false)
+            .limit(1, 1).await.unwrap();
+
+        assert_eq!(
+            repo.find().all().await.unwrap(),
+            vec![
+                User {
+                    id: 1,
+                    name: "a".into(),
+                    email: None,
+                    address: Address::new("c", "d"),
+                },
+                User {
+                    id: 2,
+                    name: "b".into(),
+                    email: None,
+                    address: Address::new("a", "b"),
+                },
+                User {
+                    id: 3,
+                    name: "c".into(),
+                    email: None,
+                    address: Address::new("c", "d"),
+                },
+                User {
+                    id: 4,
+                    name: "d".into(),
+                    email: None,
+                    address: Address::new("a", "b"),
+                },
+            ]
+        );
+
+        // Update all
+        repo
+            .update()
+            .set_model(UserModel {address: Address::new("e", "f").into(), ..Default::default()})
+            .all().await.unwrap();
+
+        assert_eq!(
+            repo.find().all().await.unwrap(),
+            vec![
+                User {
+                    id: 1,
+                    name: "a".into(),
+                    email: None,
+                    address: Address::new("e", "f"),
+                },
+                User {
+                    id: 2,
+                    name: "b".into(),
+                    email: None,
+                    address: Address::new("e", "f"),
+                },
+                User {
+                    id: 3,
+                    name: "c".into(),
+                    email: None,
+                    address: Address::new("e", "f"),
+                },
+                User {
+                    id: 4,
+                    name: "d".into(),
+                    email: None,
+                    address: Address::new("e", "f"),
+                },
+            ]
+        );
     });
 }

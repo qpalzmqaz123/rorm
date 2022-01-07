@@ -1,4 +1,5 @@
 mod delete;
+mod filter;
 mod insert;
 mod select;
 mod update;
@@ -12,6 +13,8 @@ pub use query_value::{sql_str, QueryValue};
 pub use select::SelectBuilder;
 pub use update::UpdateBuilder;
 pub use where_cond::Where;
+
+use filter::Filter;
 
 #[derive(Debug)]
 pub struct QueryBuilder {}

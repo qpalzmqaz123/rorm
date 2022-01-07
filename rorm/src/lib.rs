@@ -1,5 +1,6 @@
+mod builder;
 mod entity;
-mod model_column;
+mod model;
 mod options;
 mod repository;
 
@@ -9,8 +10,9 @@ pub use rorm_macro::Entity;
 pub use rorm_pool as pool;
 pub use rorm_query as query;
 
+pub use builder::{DeleteBuilder, FindBuilder, InsertBuilder, ToSqlParamPair, UpdateBuilder};
 pub use entity::Entity;
-pub use model_column::{ModelColumn, ModelColumn::NotSet, ModelColumn::Set};
+pub use model::{Model, ModelColumn, ModelColumn::NotSet, ModelColumn::Set};
 pub use options::FindOption;
-pub use pool::{ColumnInfo, ColumnType, IndexInfo, IndexKeyInfo, TableInfo};
+pub use pool::{ColumnInfo, ColumnType, Connection, IndexInfo, IndexKeyInfo, TableInfo};
 pub use repository::Repository;

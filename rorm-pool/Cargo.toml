@@ -9,14 +9,13 @@ edition = "2021"
 rorm-error = { path = "../rorm-error" }
 
 async-trait = { version = "0.1", default-features = false }
-r2d2 = { version = "0.8", default-features = false }
-r2d2_sqlite = { version = "0.19", default-features = false, features = ["bundled"], optional = true }
 log = { version = "0.4", default-features = false }
 tokio-02 = { package = "tokio", version = "0.2", default-features = false, optional = true, features = ["blocking"] }
 tokio-1 = { package = "tokio", version = "1", default-features = false, optional = true }
+rusqlite = { git = "https://github.com/qpalzmqaz123/rusqlite.git", rev = "65771ddc385b8178afdc66689ef93a75631150eb", features = ["bundled"], optional = true }
 
 [features]
 default = []
-sqlite = ["r2d2_sqlite"]
+sqlite = ["rusqlite"]
 "runtime-tokio-0.2" = ["tokio-02"]
 "runtime-tokio-1" = ["tokio-1"]
