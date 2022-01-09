@@ -1,48 +1,7 @@
-use std::marker::PhantomData;
-
 use crate::{
-    error::Result,
-    pool::{Connection, Value},
-    query::Where,
-    DeleteBuilder, Entity, FindBuilder, InsertBuilder, UpdateBuilder,
+    error::Result, pool::Value, query::Where, Connection, DeleteBuilder, Entity, FindBuilder,
+    InsertBuilder, UpdateBuilder,
 };
-
-#[derive(Clone)]
-pub struct Repository<E: Entity> {
-    pub conn: Connection,
-    _marker: PhantomData<E>,
-}
-
-impl<E: Entity + Send> Repository<E> {
-    pub fn new(conn: Connection) -> Self {
-        Self {
-            conn,
-            _marker: PhantomData,
-        }
-    }
-
-    pub async fn init(&self) -> Result<()> {
-        E::init(&self.conn).await?;
-
-        Ok(())
-    }
-
-    pub fn insert(&self) -> RepoInsertBuilder<E> {
-        RepoInsertBuilder::new(self.conn.clone())
-    }
-
-    pub fn delete(&self) -> RepoDeleteBuilder<E> {
-        RepoDeleteBuilder::new(self.conn.clone())
-    }
-
-    pub fn update(&self) -> RepoUpdateBuilder<E> {
-        RepoUpdateBuilder::new(self.conn.clone())
-    }
-
-    pub fn find(&self) -> RepoFindBuilder<E> {
-        RepoFindBuilder::new(self.conn.clone())
-    }
-}
 
 pub struct RepoInsertBuilder<E: Entity> {
     conn: Connection,
