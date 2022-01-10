@@ -158,7 +158,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
 
 fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
     const PARSE_ERR_STR: &'static str = "Parse failed, syntax is #[rorm(field [= value])]";
-    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | unique | table_name = "NAME" | relation = SELF_COLUMN > REFER_COLUMN | sql_type = RUST_TYPE | length = NUMBER | default = (NUMBER | STR) | index = [col1, col2, ...], ...)"#;
+    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | unique | table_name = "NAME" | relation = SELF_COLUMN > REFER_COLUMN | type_alias = RUST_TYPE | length = NUMBER | default = (NUMBER | STR) | index = [col1, col2, ...], ...)"#;
 
     let mut attrs = Vec::<AttrInfo>::new();
 
@@ -201,8 +201,8 @@ fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
                     // Parse length = NUMBER
                     "length" => attrs.push(AttrInfo::Length(get_num(&assign.right))),
 
-                    // Parse type = RUST_TYPE
-                    "sql_type" => attrs.push(AttrInfo::Type(get_path(&assign.right))),
+                    // Parse type_alias = RUST_TYPE
+                    "type_alias" => attrs.push(AttrInfo::Type(get_str(&assign.right))),
 
                     // Parse index = [col1, col2, ...]
                     "index" => attrs.push(AttrInfo::Index(get_path_arr(&assign.right))),

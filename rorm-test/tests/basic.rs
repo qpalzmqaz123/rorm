@@ -11,7 +11,7 @@ struct User {
     #[rorm(length = 20, default = "NONAME", unique)]
     pub name: String,
     pub email: Option<String>,
-    #[rorm(sql_type = String, length = 100)]
+    #[rorm(type_alias = "String", length = 100)]
     pub address: Address,
 }
 

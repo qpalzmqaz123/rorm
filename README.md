@@ -127,7 +127,7 @@ user_repo.delete().filter_model(UserModel {
 
    定义字段长度，主要用于 mysql 与 psql 中，例如对于 String 类型若长度为 30，则表中类型定义为 VARCHAR(30)。如果不填，默认 String 长度为 65535
 
-6. type = RUST_TYPE
+6. type_alias = RUST_TYPE
 
    设置字段的 rust 类型，主要用于私有类型，例如，自定义了 IPv4 的结构体，实现了 ToValue 和 FromValue 之后，设置 type 为 u32，则数据库中会定义成 Integer 类型
 
