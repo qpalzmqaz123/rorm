@@ -22,6 +22,13 @@ impl Connection {
         Err(rorm_error::connection!("Unsupport url `{}`", url))
     }
 
+    /// # Generate a dummy connection
+    pub fn dummy() -> Self {
+        Self {
+            driver: Arc::new(DummyDriver),
+        }
+    }
+
     pub async fn execute_many(&self, pairs: Vec<(String, Vec<Vec<Value>>)>) -> Result<Vec<u64>> {
         Ok(self.driver.execute_many(pairs).await?)
     }
@@ -67,5 +74,22 @@ impl Connection {
         Ok(Self {
             driver: Arc::new(driver),
         })
+    }
+}
+
+struct DummyDriver;
+
+#[async_trait::async_trait]
+impl Driver for DummyDriver {
+    async fn execute_many(&self, _pairs: Vec<(String, Vec<Vec<Value>>)>) -> Result<Vec<u64>> {
+        unreachable!()
+    }
+
+    async fn query_many(&self, _sql: &str, _params: Vec<Value>) -> Result<Vec<Row>> {
+        unreachable!()
+    }
+
+    async fn init_table(&self, _info: &TableInfo) -> Result<()> {
+        unreachable!()
     }
 }

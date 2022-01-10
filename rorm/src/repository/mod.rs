@@ -22,6 +22,13 @@ impl<E: Entity + Send> Repository<E> {
         }
     }
 
+    pub fn dummy() -> Self {
+        Self {
+            conn: Connection::dummy(),
+            _marker: PhantomData,
+        }
+    }
+
     pub async fn init(&self) -> Result<()> {
         E::init(&self.conn).await?;
 
