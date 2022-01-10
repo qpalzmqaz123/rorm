@@ -1,5 +1,6 @@
 use rorm::{Entity, Repository};
 use rorm_test::run_async_test;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Entity)]
 #[rorm(table_name = "user")]
@@ -11,11 +12,11 @@ struct User {
     #[rorm(length = 20, default = "NONAME", unique)]
     pub name: String,
     pub email: Option<String>,
-    #[rorm(type_alias = "String", length = 100)]
+    #[rorm(serde = serde_json, length = 100)]
     pub address: Address,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct Address {
     pub city: String,
     pub street: String,
@@ -27,35 +28,6 @@ impl Address {
             city: city.into(),
             street: street.into(),
         }
-    }
-}
-
-impl rorm::ToValue for Address {
-    fn to_value(&self) -> rorm::Value {
-        rorm::Value::Str(format!("{}#{}", self.city, self.street))
-    }
-}
-
-impl rorm::FromValue for Address {
-    type Output = Address;
-
-    fn from_value(v: &rorm::Value) -> rorm::error::Result<Self::Output> {
-        if let rorm::Value::Str(s) = v {
-            let mut arr = s.split("#");
-            let city = arr
-                .next()
-                .ok_or(rorm::error::from_value!("Invalid address string"))?;
-            let street = arr
-                .next()
-                .ok_or(rorm::error::from_value!("Invalid address string"))?;
-
-            return Ok(Self {
-                city: city.into(),
-                street: street.into(),
-            });
-        }
-
-        Err(rorm::error::from_value!("Address type must be string"))
     }
 }
 

@@ -21,6 +21,7 @@ pub struct ColumnInfo {
     pub default: Option<String>, // Sql literal
     pub is_unique: bool,
     pub relation: Option<RelationInfo>,
+    pub is_serde_json: bool, // Default is false
 }
 
 #[derive(Debug)]
@@ -44,6 +45,7 @@ enum AttrInfo {
     Default(String),
     Unique,
     Relation((String, String)), // (self_col, ref_col)
+    SerdeJson,
 }
 
 pub fn parse(input: DeriveInput) -> TableInfo {
@@ -113,6 +115,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
         let mut default = Option::<String>::None;
         let mut is_unique = false;
         let mut relation = Option::<RelationInfo>::None;
+        let mut is_serde_json = false;
 
         // Parse attr
         for attr in &field.attrs {
@@ -135,6 +138,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
                     AttrInfo::Relation((self_col, ref_col)) => {
                         relation = Some(parse_relation(&ty, self_col, ref_col))
                     }
+                    AttrInfo::SerdeJson => is_serde_json = true,
                     _ => abort!(attr, "Invalid column attr field: {:?}", attr_info),
                 }
             }
@@ -150,6 +154,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
             default,
             is_unique,
             relation,
+            is_serde_json,
         });
     }
 
@@ -158,7 +163,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
 
 fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
     const PARSE_ERR_STR: &'static str = "Parse failed, syntax is #[rorm(field [= value])]";
-    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | unique | table_name = "NAME" | relation = SELF_COLUMN > REFER_COLUMN | type_alias = RUST_TYPE | length = NUMBER | default = (NUMBER | STR) | index = [col1, col2, ...], ...)"#;
+    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | unique | table_name = "NAME" | relation = SELF_COLUMN > REFER_COLUMN | serde = serde_json | length = NUMBER | default = (NUMBER | STR) | index = [col1, col2, ...], ...)"#;
 
     let mut attrs = Vec::<AttrInfo>::new();
 
@@ -201,8 +206,17 @@ fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
                     // Parse length = NUMBER
                     "length" => attrs.push(AttrInfo::Length(get_num(&assign.right))),
 
-                    // Parse type_alias = RUST_TYPE
-                    "type_alias" => attrs.push(AttrInfo::Type(get_str(&assign.right))),
+                    // Parse type_alias = serde_json
+                    "serde" => {
+                        let kind = get_path(&assign.right);
+                        match kind.as_str() {
+                            "serde_json" => {
+                                attrs.push(AttrInfo::Type("String".into())); // Json type is string
+                                attrs.push(AttrInfo::SerdeJson);
+                            }
+                            _ => abort!(assign.right, "Invalid serde type"),
+                        }
+                    }
 
                     // Parse index = [col1, col2, ...]
                     "index" => attrs.push(AttrInfo::Index(get_path_arr(&assign.right))),

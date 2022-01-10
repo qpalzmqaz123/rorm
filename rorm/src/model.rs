@@ -53,7 +53,7 @@ impl<T> Default for ModelColumn<T> {
     }
 }
 
-impl<T: ToValue> From<T> for ModelColumn<T> {
+impl<T> From<T> for ModelColumn<T> {
     fn from(v: T) -> Self {
         Self::Set(v)
     }

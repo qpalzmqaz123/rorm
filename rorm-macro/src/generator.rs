@@ -81,9 +81,21 @@ fn gen_model(info: &TableInfo) -> TokenStream {
         .map(|col| {
             let name_str = &col.name;
             let name = str_to_toks(&col.name);
-            quote! {
-                if let rorm::Set(v) = self.#name {
-                    arr.push((#name_str, v.to_value()));
+
+            if col.is_serde_json {
+                quote! {
+                    if let rorm::Set(v) = self.#name {
+                        match serde_json::to_string(&v) {
+                            Ok(s) => arr.push((#name_str, s.to_value())),
+                            Err(e) => eprintln!("ERROR: Parse '{:?}' to json error: {}", v, e), // FIXME: catch error
+                        }
+                    }
+                }
+            } else {
+                quote! {
+                    if let rorm::Set(v) = self.#name {
+                        arr.push((#name_str, v.to_value()));
+                    }
                 }
             }
         })
@@ -263,8 +275,19 @@ fn gen_impl_table_from_row(info: &TableInfo) -> TokenStream {
                 }
             } else {
                 // Normal field
-                let toks = quote! {
-                    #name: row.get(#index)?,
+                let toks = if col.is_serde_json {
+                    // Parse from json
+                    quote! {
+                        #name: {
+                            let s = row.get::<String>(#index)?;
+                            serde_json::from_str(&s).map_err(|e| rorm::error::from_value!("Convert json '{}' to {}.{} failed", s, std::any::type_name::<Self>(), stringify!(#name)))?
+                        }
+                    }
+                } else {
+                    // Not json
+                    quote! {
+                        #name: row.get(#index)?,
+                    }
                 };
 
                 // Increase index
