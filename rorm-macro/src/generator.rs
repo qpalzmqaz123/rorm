@@ -47,8 +47,17 @@ fn gen_model(info: &TableInfo) -> TokenStream {
         .map(|col| {
             let name = str_to_toks(&col.name);
             let ty = str_to_toks(&col.ty);
-            quote! {
-                pub #name: rorm::ModelColumn<#ty>,
+            let flatten_ty_model = str_to_toks(&format!("{}Model", col.ty));
+
+            if col.is_flatten {
+                // Flatten type is model
+                quote! {
+                    pub #name: rorm::ModelColumn<#flatten_ty_model>,
+                }
+            } else {
+                quote! {
+                    pub #name: rorm::ModelColumn<#ty>,
+                }
             }
         })
         .collect();
@@ -58,8 +67,16 @@ fn gen_model(info: &TableInfo) -> TokenStream {
         .filter(|col| col.relation.is_none()) // Skip relation fields
         .map(|col| {
             let name = str_to_toks(&col.name);
-            quote! {
-                #name: rorm::Set(v.#name),
+            let ty = str_to_toks(&format!("{}Model", col.ty));
+
+            if col.is_flatten {
+                quote! {
+                    #name: #ty::from(v.#name).into(),
+                }
+            } else {
+                quote! {
+                    #name: v.#name.into(),
+                }
             }
         })
         .collect();
@@ -81,9 +98,17 @@ fn gen_model(info: &TableInfo) -> TokenStream {
                     }
                 }
             } else {
-                quote! {
-                    if let rorm::Set(v) = self.#name {
-                        arr.push((#name_str, v.to_value()));
+                if col.is_flatten {
+                    quote! {
+                        if let rorm::Set(v) = self.#name {
+                            arr.extend(v.into_set_pairs());
+                        }
+                    }
+                } else {
+                    quote! {
+                        if let rorm::Set(v) = self.#name {
+                            arr.push((#name_str, v.to_value()));
+                        }
                     }
                 }
             }
@@ -109,6 +134,11 @@ fn gen_model(info: &TableInfo) -> TokenStream {
                 }
             })
             .collect(),
+    };
+    let convert_id_to_primary_key_toks = if primary_key_types.to_string() != "()" {
+        quote! { id as #primary_key_types }
+    } else {
+        quote! {}
     };
 
     quote! {
@@ -150,7 +180,7 @@ fn gen_model(info: &TableInfo) -> TokenStream {
             }
 
             fn to_primary_key(id: u64) -> #primary_key_types {
-                id as #primary_key_types
+                #convert_id_to_primary_key_toks
             }
         }
     }
@@ -164,6 +194,7 @@ fn gen_table_info(info: &TableInfo) -> TokenStream {
         .filter(|col| col.relation.is_none()) // Skip relation fields
         .map(|col| {
             let name = &col.name;
+            let ty = str_to_toks(&col.ty);
             let (ty_toks, is_not_null) = gen_column_type_and_is_not_null(&col);
             let is_primary_key = info.primary_keys.contains(name);
             let is_auto_increment = col.is_auto_increment;
@@ -173,6 +204,15 @@ fn gen_table_info(info: &TableInfo) -> TokenStream {
                 quote! { None }
             };
             let is_unique = col.is_unique;
+            let flatten_ref_tok = if col.is_flatten {
+                quote! {
+                    Some(&#ty::INFO)
+                }
+            } else {
+                quote! {
+                    None
+                }
+            };
 
             quote! {
                 rorm::ColumnInfo {
@@ -183,6 +223,7 @@ fn gen_table_info(info: &TableInfo) -> TokenStream {
                     is_auto_increment: #is_auto_increment,
                     default: #default,
                     is_unique: #is_unique,
+                    flatten_ref: #flatten_ref_tok,
                 }
             }
         })
@@ -229,6 +270,7 @@ fn gen_impl_table_from_row(info: &TableInfo) -> TokenStream {
         .map(|col| {
             let name_str = &col.name;
             let name = str_to_toks(&col.name);
+            let ty = str_to_toks(&col.ty);
 
             if let Some(relation) = &col.relation {
                 // Relation field
@@ -274,8 +316,14 @@ fn gen_impl_table_from_row(info: &TableInfo) -> TokenStream {
                     }
                 } else {
                     // Not json
-                    quote! {
-                        #name: row.get(#name_str)?,
+                    if col.is_flatten {
+                        quote! {
+                            #name: <#ty as rorm::Entity>::from_row(conn, &row).await?,
+                        }
+                    } else {
+                        quote! {
+                            #name: row.get(#name_str)?,
+                        }
                     }
                 };
 
@@ -285,7 +333,7 @@ fn gen_impl_table_from_row(info: &TableInfo) -> TokenStream {
         .collect();
 
     quote! {
-        async fn from_row(conn: &rorm::Connection, row: rorm::Row) -> rorm::error::Result<Self> {
+        async fn from_row(conn: &rorm::Connection, row: &rorm::Row) -> rorm::error::Result<Self> {
             Ok(Self {
                 #(#field_toks)*
             })
@@ -334,6 +382,11 @@ fn gen_primary_key_type_toks(columns: &[ColumnInfo], primary_keys: &[String]) ->
 }
 
 fn gen_column_type_and_is_not_null(col: &ColumnInfo) -> (TokenStream, bool) {
+    if col.is_flatten {
+        // Type is unused if column is flatten
+        return (quote! { rorm::ColumnType::Bool }, true);
+    }
+
     let length = col.length.unwrap_or(65535);
 
     match col.sql_ty.replace(" ", "").as_str() {

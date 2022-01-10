@@ -46,6 +46,7 @@ async fn test_info() {
                     is_auto_increment: true,
                     default: None,
                     is_unique: false,
+                    flatten_ref: None,
                 },
                 rorm::ColumnInfo {
                     name: "name",
@@ -55,6 +56,7 @@ async fn test_info() {
                     is_auto_increment: false,
                     default: Some("'NONAME'"),
                     is_unique: true,
+                    flatten_ref: None,
                 },
                 rorm::ColumnInfo {
                     name: "email",
@@ -64,6 +66,7 @@ async fn test_info() {
                     is_auto_increment: false,
                     default: None,
                     is_unique: false,
+                    flatten_ref: None,
                 },
                 rorm::ColumnInfo {
                     name: "address",
@@ -73,6 +76,7 @@ async fn test_info() {
                     is_auto_increment: false,
                     default: None,
                     is_unique: false,
+                    flatten_ref: None,
                 },
             ],
             indexes: &[

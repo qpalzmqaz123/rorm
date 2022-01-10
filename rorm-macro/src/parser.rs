@@ -22,6 +22,7 @@ pub struct ColumnInfo {
     pub is_unique: bool,
     pub relation: Option<RelationInfo>,
     pub is_serde_json: bool, // Default is false
+    pub is_flatten: bool,    // Default is false
 }
 
 #[derive(Debug)]
@@ -46,6 +47,7 @@ enum AttrInfo {
     Unique,
     Relation((String, String)), // (self_col, ref_col)
     SerdeJson,
+    Flatten,
 }
 
 pub fn parse(input: DeriveInput) -> TableInfo {
@@ -116,6 +118,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
         let mut is_unique = false;
         let mut relation = Option::<RelationInfo>::None;
         let mut is_serde_json = false;
+        let mut is_flatten = false;
 
         // Parse attr
         for attr in &field.attrs {
@@ -139,6 +142,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
                         relation = Some(parse_relation(&ty, self_col, ref_col))
                     }
                     AttrInfo::SerdeJson => is_serde_json = true,
+                    AttrInfo::Flatten => is_flatten = true,
                     _ => abort!(attr, "Invalid column attr field: {:?}", attr_info),
                 }
             }
@@ -155,6 +159,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
             is_unique,
             relation,
             is_serde_json,
+            is_flatten,
         });
     }
 
@@ -163,7 +168,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
 
 fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
     const PARSE_ERR_STR: &'static str = "Parse failed, syntax is #[rorm(field [= value])]";
-    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | unique | table_name = "NAME" | relation = SELF_COLUMN > REFER_COLUMN | serde = serde_json | length = NUMBER | default = (NUMBER | STR) | index = [col1, col2, ...], ...)"#;
+    const ARG_HELP: &'static str = r#"Syntax is rorm(primary_key | auto_increment | unique | flatten | table_name = "NAME" | relation = SELF_COLUMN > REFER_COLUMN | serde = serde_json | length = NUMBER | default = (NUMBER | STR) | index = [col1, col2, ...], ...)"#;
 
     let mut attrs = Vec::<AttrInfo>::new();
 
@@ -192,6 +197,9 @@ fn parse_rorm_attr(attr: &Attribute) -> Vec<AttrInfo> {
 
                     // Parse auto_increment
                     "unique" => attrs.push(AttrInfo::Unique),
+
+                    // Parse flatten
+                    "flatten" => attrs.push(AttrInfo::Flatten),
 
                     // Error
                     _ => abort!(expr, "Syntax error while decode path"; help = ARG_HELP),

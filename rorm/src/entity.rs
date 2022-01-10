@@ -12,7 +12,7 @@ pub trait Entity: Sized {
     const INFO: TableInfo;
 
     /// Convert database row to self
-    async fn from_row(conn: &Connection, row: Row) -> Result<Self>;
+    async fn from_row(conn: &Connection, row: &Row) -> Result<Self>;
 
     /// Init table, create table and index if not exists
     async fn init(conn: &Connection) -> Result<()> {

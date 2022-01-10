@@ -11,7 +11,7 @@ use std::{
 
 use rorm_error::Result;
 
-use crate::{ColumnType, Driver, IndexInfo, Row, TableInfo, Value};
+use crate::{ColumnInfo, ColumnType, Driver, IndexInfo, Row, TableInfo, Value};
 
 #[cfg(feature = "runtime-tokio-0.2")]
 use tokio_02::task::spawn_blocking;
@@ -202,39 +202,46 @@ impl rusqlite::ToSql for Value {
 }
 
 fn gen_create_table(info: &TableInfo) -> String {
-    let cols = info
-        .columns
-        .iter()
-        .map(|col| {
-            format!(
+    format!(
+        "CREATE TABLE IF NOT EXISTS {table_name} ({cols})",
+        table_name = info.name,
+        cols = gen_cols(info.columns).join(", ")
+    )
+}
+
+fn gen_cols(infos: &[ColumnInfo]) -> Vec<String> {
+    let mut cols = vec![];
+
+    for info in infos {
+        if let Some(ref_info) = info.flatten_ref {
+            cols.extend(gen_cols(ref_info.columns));
+        } else {
+            let col = format!(
                 "{name} {ty} {prim_key} {auto_incr} {not_null} {default} {unique}",
-                name = col.name,
-                ty = column_type_to_sqlite_type(&col.ty),
-                prim_key = if col.is_primary_key {
+                name = info.name,
+                ty = column_type_to_sqlite_type(&info.ty),
+                prim_key = if info.is_primary_key {
                     "PRIMARY KEY"
                 } else {
                     ""
                 },
-                auto_incr = if col.is_auto_increment {
+                auto_incr = if info.is_auto_increment {
                     "AUTOINCREMENT"
                 } else {
                     ""
                 },
-                not_null = if col.is_not_null { "NOT NULL" } else { "" },
-                default = col
+                not_null = if info.is_not_null { "NOT NULL" } else { "" },
+                default = info
                     .default
                     .map(|def| format!("DEFAULT {}", def))
                     .unwrap_or("".into()),
-                unique = if col.is_unique { "UNIQUE" } else { "" },
-            )
-        })
-        .collect::<Vec<_>>();
+                unique = if info.is_unique { "UNIQUE" } else { "" },
+            );
+            cols.push(col);
+        }
+    }
 
-    format!(
-        "CREATE TABLE IF NOT EXISTS {table_name} ({cols})",
-        table_name = info.name,
-        cols = cols.join(", ")
-    )
+    cols
 }
 
 fn gen_create_index(table_name: &str, index_info: &IndexInfo) -> String {

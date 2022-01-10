@@ -60,7 +60,7 @@ impl<E: Entity> FindBuilder<E> {
             for params in params_list {
                 let arr = conn
                     .query_many_map(&sql, params, |row| async move {
-                        Ok(E::from_row(conn, row).await?)
+                        Ok(E::from_row(conn, &row).await?)
                     })
                     .await?;
                 list.extend(arr);
