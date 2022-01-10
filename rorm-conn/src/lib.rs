@@ -3,6 +3,8 @@ mod drivers;
 mod info;
 mod value;
 
+use std::collections::HashMap;
+
 pub use connection::Connection;
 pub use value::{FromValue, ToValue, Value};
 
@@ -24,11 +26,11 @@ pub trait Driver: Sync + Send {
 
 #[derive(Debug)]
 pub struct Row {
-    pub(crate) values: Vec<Value>,
+    pub(crate) values: HashMap<String, Value>,
 }
 
 impl Row {
-    pub fn get<T: FromValue<Output = T>>(&self, index: usize) -> Result<T> {
+    pub fn get<T: FromValue<Output = T>>(&self, index: &str) -> Result<T> {
         if let Some(v) = self.values.get(index) {
             Ok(T::from_value(v)?)
         } else {

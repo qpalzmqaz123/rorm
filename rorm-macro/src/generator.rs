@@ -234,11 +234,11 @@ fn gen_table_info(info: &TableInfo) -> TokenStream {
 }
 
 fn gen_impl_table_from_row(info: &TableInfo) -> TokenStream {
-    let mut index = 0usize; // The relation field will occupy the index, so the index needs to be calculated separately
     let field_toks: Vec<TokenStream> = info
         .columns
         .iter()
         .map(|col| {
+            let name_str = &col.name;
             let name = str_to_toks(&col.name);
 
             if let Some(relation) = &col.relation {
@@ -246,10 +246,10 @@ fn gen_impl_table_from_row(info: &TableInfo) -> TokenStream {
                 let relation_struct = str_to_toks(&relation.ty);
                 let relation_model = str_to_toks(&format!("{}Model", relation.ty)); // FIXME: Model rule must be defined in one place
                 let relation_field = str_to_toks(&relation.ref_col);
-                let relation_self_field_index = info.columns.iter().filter(|v| v.relation.is_none()).position(|v| v.name == relation.self_col).expect(&format!("Relation self_col '{}' not found in table '{}'", relation.self_col, info.struct_name));
+                let relation_self_col_name = &relation.self_col;
                 let model_toks = quote! {
                     #relation_model {
-                        #relation_field: rorm::Set(row.get(#relation_self_field_index)?),
+                        #relation_field: rorm::Set(row.get(#relation_self_col_name)?),
                         ..Default::default()
                     }
                 };
@@ -279,19 +279,16 @@ fn gen_impl_table_from_row(info: &TableInfo) -> TokenStream {
                     // Parse from json
                     quote! {
                         #name: {
-                            let s = row.get::<String>(#index)?;
+                            let s = row.get::<String>(#name_str)?;
                             serde_json::from_str(&s).map_err(|e| rorm::error::from_value!("Convert json '{}' to {}.{} failed", s, std::any::type_name::<Self>(), stringify!(#name)))?
                         }
                     }
                 } else {
                     // Not json
                     quote! {
-                        #name: row.get(#index)?,
+                        #name: row.get(#name_str)?,
                     }
                 };
-
-                // Increase index
-                index += 1;
 
                 toks
             }

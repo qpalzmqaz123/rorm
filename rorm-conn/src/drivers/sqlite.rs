@@ -4,7 +4,10 @@
 //!   1. ./configure CC=x86_64-linux-musl-gcc --disable-shared --enable-static --disable-readline --disable-tcl
 //!   2. OPTS=-DSQLITE_ENABLE_UPDATE_DELETE_LIMIT=1 make sqlite3.c
 
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use rorm_error::Result;
 
@@ -91,7 +94,7 @@ impl Driver for SqliteConnProxy {
                 .map_err(|e| rorm_error::database!("Query error: {}", e))?;
             let mut rows = Vec::<Row>::new();
             while let Ok(Some(row)) = sql_rows.next() {
-                let row = rusqlite_row_to_rorm_row(row);
+                let row = rusqlite_row_to_rorm_row(row)?;
                 log::trace!("Append row: {:?}", row);
                 rows.push(row);
             }
@@ -146,11 +149,18 @@ fn rorm_param_to_rusqlite_param(params: &Vec<Value>) -> Vec<&'_ dyn rusqlite::To
     params.iter().map(|v| v as &dyn rusqlite::ToSql).collect()
 }
 
-fn rusqlite_row_to_rorm_row<'s>(src: &rusqlite::Row<'s>) -> Row {
+fn rusqlite_row_to_rorm_row<'s>(src: &rusqlite::Row<'s>) -> Result<Row> {
     use rusqlite::types::ValueRef;
 
-    let mut values = Vec::<Value>::new();
-    for i in 0..usize::MAX {
+    let stmt = src.as_ref();
+
+    let mut values = HashMap::new();
+    for i in 0..stmt.column_count() {
+        let column_name = stmt
+            .column_name(i)
+            .map_err(|e| rorm_error::database!("Get column name error: {}", e))?
+            .to_string();
+
         if let Ok(v) = src.get_ref(i) {
             let value = match v {
                 ValueRef::Null => Value::Null,
@@ -161,13 +171,13 @@ fn rusqlite_row_to_rorm_row<'s>(src: &rusqlite::Row<'s>) -> Row {
                 }
                 ValueRef::Blob(v) => Value::Bytes(v.to_vec()),
             };
-            values.push(value);
+            values.insert(column_name, value);
         } else {
             break;
         }
     }
 
-    Row { values }
+    Ok(Row { values })
 }
 
 impl rusqlite::ToSql for Value {
