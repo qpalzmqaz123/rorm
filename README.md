@@ -29,7 +29,7 @@ struct User {
 根据不同数据库创建 sqlite, mysql (预留), postgresql (预留) 连接
 
 ```rust
-let connection = rorm::pool::sqlite::Builder::memory().connect()?;
+let connection = rorm::Connection::connect("sqlite://memory")?;
 ```
 
 #### 创建 repository
@@ -58,15 +58,13 @@ user_repo.init().await?;
 
 另外，ModelColumn  实现了所有 ToValue 数据到自身 Set 的转换，所以设置时不需要使用 Set 声明，直接用 into() 即可
 
-插入分为 insert 与 insert_many，插入大量数据时使用 many 性能最好
-
 ```rust
 let bob = UserModel {
     name: "bob".into(),
     ..Default::default()
 };
 
-let bob_id = user_repo.insert(bob).await?;
+let bob_id = user_repo.insert().model(bob).one().await?;
 ```
 
 ### 更新
@@ -77,7 +75,7 @@ let new_bob = UserModel {
     ..Default::default()
 };
 
-user_repo.update(bob_id, new_bob).await?;
+user_repo.update().set_model(new_bob).filter_model(bob_id).one().await?;
 ```
 
 ### 查找
@@ -87,12 +85,9 @@ user_repo.update(bob_id, new_bob).await?;
 查找分为 find 与 find_many，find 只返回找到的第一个数据，many 返回数组
 
 ```rust
-let bob = user_repo.find(bob_id, None).await?;
+let bob = user_repo.find().filter_model(bob_id).one().await?;
 
-let users = user_repo.find_many(UserModel::default(), FindOption {
-    limit: Some((10, 0)), // limit 10, offset 0
-    ..Default::default()
-}).await?;
+let users = user_repo.find().order_by("id").limit(10, 0).all().await?; // limit 10, offset 0
 ```
 
 ### 删除
@@ -100,10 +95,10 @@ let users = user_repo.find_many(UserModel::default(), FindOption {
 ```rust
 user_repo.delete(bob_id).await?;
 
-user_repo.delete(UserModel {
+user_repo.delete().filter_model(UserModel {
     nickname: Some("bbb").into(),
     ..Default::default()
-}).await?;
+}).all().await?;
 ```
 
 ## 宏
