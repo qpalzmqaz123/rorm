@@ -1,6 +1,6 @@
 use rorm_error::Result;
 
-use crate::{Filter, Where};
+use crate::{lazy_impl_filer_for_struct, Filter, Where};
 
 #[derive(Debug, Default)]
 pub struct DeleteBuilder {
@@ -45,4 +45,4 @@ impl DeleteBuilder {
     }
 }
 
-crate::lazy_impl_filer_for_struct! { DeleteBuilder }
+lazy_impl_filer_for_struct! { DeleteBuilder }

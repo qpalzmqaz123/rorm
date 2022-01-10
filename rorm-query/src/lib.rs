@@ -1,11 +1,10 @@
 mod delete;
 mod filter;
 mod insert;
+mod query_value;
 mod select;
 mod update;
-#[macro_use]
 mod where_cond;
-mod query_value;
 
 pub use delete::DeleteBuilder;
 pub use insert::InsertBuilder;

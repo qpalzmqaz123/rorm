@@ -1,6 +1,6 @@
 use rorm_error::Result;
 
-use crate::{Filter, QueryValue, Where};
+use crate::{lazy_impl_filer_for_struct, Filter, QueryValue, Where};
 
 #[derive(Debug, Default)]
 pub struct UpdateBuilder {
@@ -106,4 +106,4 @@ impl UpdateBuilder {
     }
 }
 
-crate::lazy_impl_filer_for_struct! { UpdateBuilder }
+lazy_impl_filer_for_struct! { UpdateBuilder }

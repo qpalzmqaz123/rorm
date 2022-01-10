@@ -1,6 +1,6 @@
 use rorm_error::Result;
 
-use crate::{Filter, Where};
+use crate::{lazy_impl_filer_for_struct, Filter, Where};
 
 #[derive(Debug, Default)]
 pub struct SelectBuilder {
@@ -102,4 +102,4 @@ impl SelectBuilder {
     }
 }
 
-crate::lazy_impl_filer_for_struct! { SelectBuilder }
+lazy_impl_filer_for_struct! { SelectBuilder }
