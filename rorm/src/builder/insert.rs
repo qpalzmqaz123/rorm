@@ -76,7 +76,7 @@ impl<E: Entity> ToSqlParamPair for InsertBuilder<E> {
 
         for (cols, params_list) in self.pairs {
             let values = cols.iter().map(|_| "?".into()).collect::<Vec<_>>();
-            let sql = QueryBuilder::insert(E::TABLE_NAME)
+            let sql = QueryBuilder::insert(E::INFO.name)
                 .columns(cols)
                 .values(values)
                 .build()?;

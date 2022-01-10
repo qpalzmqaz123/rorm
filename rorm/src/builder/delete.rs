@@ -11,7 +11,7 @@ pub struct DeleteBuilder<E: Entity> {
 impl<E: Entity> DeleteBuilder<E> {
     pub fn new() -> Self {
         Self {
-            sql_builder: query::QueryBuilder::delete(E::TABLE_NAME),
+            sql_builder: query::QueryBuilder::delete(E::INFO.name),
             params: vec![],
             _marker1: PhantomData,
         }

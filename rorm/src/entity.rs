@@ -8,12 +8,6 @@ pub trait Entity: Sized {
     type PrimaryKey;
     type Model: Model<Self::PrimaryKey>;
 
-    /// Table name
-    const TABLE_NAME: &'static str;
-
-    /// Column names
-    const COLUMNS: &'static [&'static str];
-
     /// Table info
     const INFO: TableInfo;
 

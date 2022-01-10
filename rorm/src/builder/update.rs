@@ -12,7 +12,7 @@ pub struct UpdateBuilder<E: Entity> {
 impl<E: Entity> UpdateBuilder<E> {
     pub fn new() -> Self {
         Self {
-            sql_builder: query::QueryBuilder::update(E::TABLE_NAME),
+            sql_builder: query::QueryBuilder::update(E::INFO.name),
             set_params: vec![],
             where_params: vec![],
             _marker1: PhantomData,

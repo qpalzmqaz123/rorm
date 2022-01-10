@@ -10,8 +10,8 @@ pub struct FindBuilder<E: Entity> {
 
 impl<E: Entity> FindBuilder<E> {
     pub fn new() -> Self {
-        let mut builder = query::SelectBuilder::new(E::TABLE_NAME);
-        builder.columns(E::COLUMNS);
+        let mut builder = query::SelectBuilder::new(E::INFO.name);
+        builder.column("*");
 
         Self {
             sql_builder: builder,

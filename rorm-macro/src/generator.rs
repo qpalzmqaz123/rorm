@@ -18,15 +18,8 @@ pub fn generate(info: TableInfo) -> TokenStream {
 
 fn gen_impl_table(info: &TableInfo) -> TokenStream {
     let primary_key_type = gen_primary_key_type_toks(&info.columns, &info.primary_keys);
-    let table_name_str = &info.table_name;
     let model_name = str_to_toks(&info.model_name);
     let struct_name = str_to_toks(&info.struct_name);
-    let columns: Vec<&String> = info
-        .columns
-        .iter()
-        .filter(|col| col.relation.is_none()) // Skip relation fields
-        .map(|v| &v.name)
-        .collect();
     let info_toks = gen_table_info(&info);
     let from_row_toks = gen_impl_table_from_row(&info);
 
@@ -35,10 +28,6 @@ fn gen_impl_table(info: &TableInfo) -> TokenStream {
         impl rorm::Entity for #struct_name {
             type PrimaryKey = #primary_key_type;
             type Model = #model_name;
-
-            const TABLE_NAME: &'static str = #table_name_str;
-
-            const COLUMNS: &'static [&'static str] = &[#(#columns),*];
 
             const INFO: rorm::TableInfo = #info_toks;
 

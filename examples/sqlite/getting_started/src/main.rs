@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     user_repo.init().await?;
 
     // Check table name
-    assert_eq!("user", User::TABLE_NAME);
+    assert_eq!("user", User::INFO.name);
 
     // Insert bob
     let bob = UserModel {
