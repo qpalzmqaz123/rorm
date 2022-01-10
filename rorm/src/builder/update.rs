@@ -1,10 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{
-    error::Result,
-    pool::{Connection, Value},
-    query, Entity, Model, ToSqlParamPair,
-};
+use crate::{error::Result, query, Connection, Entity, Model, ToSqlParamPair, Value};
 
 pub struct UpdateBuilder<E: Entity> {
     sql_builder: query::UpdateBuilder,

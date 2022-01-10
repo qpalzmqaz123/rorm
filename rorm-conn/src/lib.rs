@@ -6,8 +6,10 @@ mod value;
 pub use connection::Connection;
 pub use value::{FromValue, ToValue, Value};
 
-#[cfg(feature = "sqlite")]
-pub use drivers::sqlite;
+pub mod driver {
+    #[cfg(feature = "sqlite")]
+    pub use rusqlite;
+}
 
 pub use info::{ColumnInfo, ColumnType, IndexInfo, IndexKeyInfo, TableInfo};
 

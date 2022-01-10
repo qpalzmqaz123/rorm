@@ -1,4 +1,4 @@
-use rorm_pool::{Connection, Value};
+use rorm_conn::{Connection, Value};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

@@ -1,5 +1,5 @@
 [package]
-name = "rorm-pool"
+name = "rorm-conn"
 version = "0.1.0"
 edition = "2021"
 

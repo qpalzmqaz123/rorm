@@ -3,7 +3,7 @@ mod transaction;
 
 use std::marker::PhantomData;
 
-use crate::{error::Result, pool::Connection, Entity};
+use crate::{error::Result, Connection, Entity};
 
 use builder::{RepoDeleteBuilder, RepoFindBuilder, RepoInsertBuilder, RepoUpdateBuilder};
 use transaction::RepoTransaction;

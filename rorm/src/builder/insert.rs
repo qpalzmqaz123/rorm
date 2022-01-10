@@ -2,11 +2,7 @@ use std::marker::PhantomData;
 
 use rorm_query::QueryBuilder;
 
-use crate::{
-    error::Result,
-    pool::{Connection, Value},
-    Entity, Model,
-};
+use crate::{error::Result, Connection, Entity, Model, Value};
 
 use super::ToSqlParamPair;
 

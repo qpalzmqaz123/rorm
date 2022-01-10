@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 rorm-macro = { path = "../rorm-macro" }
-rorm-pool = { path = "../rorm-pool" }
+rorm-conn = { path = "../rorm-conn" }
 rorm-query = { path = "../rorm-query" }
 rorm-error= { path = "../rorm-error" }
 
@@ -15,6 +15,6 @@ async-trait = { version = "0.1", default-features = false }
 
 [features]
 default = []
-sqlite = ["rorm-pool/sqlite"]
-"runtime-tokio-0.2" = ["rorm-pool/runtime-tokio-0.2"]
-"runtime-tokio-1" = ["rorm-pool/runtime-tokio-1"]
+sqlite = ["rorm-conn/sqlite"]
+"runtime-tokio-0.2" = ["rorm-conn/runtime-tokio-0.2"]
+"runtime-tokio-1" = ["rorm-conn/runtime-tokio-1"]

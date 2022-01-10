@@ -1,6 +1,6 @@
 use crate::{
-    pool::{ToValue, Value},
     query::{and, eq, Where},
+    ToValue, Value,
 };
 
 pub trait Model<K>: Sized {

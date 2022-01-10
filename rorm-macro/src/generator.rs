@@ -138,8 +138,8 @@ fn gen_model(info: &TableInfo) -> TokenStream {
 
         // Impl trait
         impl rorm::Model<#primary_key_types> for #model_name {
-            fn into_set_pairs(self) -> Vec<(&'static str, rorm::pool::Value)> {
-                use rorm::pool::ToValue;
+            fn into_set_pairs(self) -> Vec<(&'static str, rorm::Value)> {
+                use rorm::ToValue;
 
                 let mut arr = vec![];
 
@@ -276,7 +276,7 @@ fn gen_impl_table_from_row(info: &TableInfo) -> TokenStream {
         .collect();
 
     quote! {
-        async fn from_row(conn: &rorm::pool::Connection, row: rorm::pool::Row) -> rorm::error::Result<Self> {
+        async fn from_row(conn: &rorm::Connection, row: rorm::Row) -> rorm::error::Result<Self> {
             Ok(Self {
                 #(#field_toks)*
             })

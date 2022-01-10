@@ -1,6 +1,6 @@
 use crate::{
-    error::Result, pool::Value, query::Where, Connection, DeleteBuilder, Entity, FindBuilder,
-    InsertBuilder, UpdateBuilder,
+    error::Result, query::Where, Connection, DeleteBuilder, Entity, FindBuilder, InsertBuilder,
+    UpdateBuilder, Value,
 };
 
 pub struct RepoInsertBuilder<E: Entity> {

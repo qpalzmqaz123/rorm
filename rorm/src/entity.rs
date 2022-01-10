@@ -1,6 +1,6 @@
 use crate::{
-    error::Result, pool::Connection, pool::Row, DeleteBuilder, FindBuilder, InsertBuilder, Model,
-    TableInfo, UpdateBuilder,
+    error::Result, Connection, DeleteBuilder, FindBuilder, InsertBuilder, Model, Row, TableInfo,
+    UpdateBuilder,
 };
 
 #[async_trait::async_trait]

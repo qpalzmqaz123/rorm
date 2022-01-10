@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
 use crate::{
-    error::Result, pool::Value, query::Where, Connection, DeleteBuilder, Entity, InsertBuilder,
-    ToSqlParamPair, UpdateBuilder,
+    error::Result, query::Where, Connection, DeleteBuilder, Entity, InsertBuilder, ToSqlParamPair,
+    UpdateBuilder, Value,
 };
 
 pub struct RepoTransaction<'conn, E: Entity> {

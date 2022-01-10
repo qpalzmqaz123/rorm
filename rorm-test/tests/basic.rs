@@ -30,17 +30,17 @@ impl Address {
     }
 }
 
-impl rorm::pool::ToValue for Address {
-    fn to_value(&self) -> rorm::pool::Value {
-        rorm::pool::Value::Str(format!("{}#{}", self.city, self.street))
+impl rorm::ToValue for Address {
+    fn to_value(&self) -> rorm::Value {
+        rorm::Value::Str(format!("{}#{}", self.city, self.street))
     }
 }
 
-impl rorm::pool::FromValue for Address {
+impl rorm::FromValue for Address {
     type Output = Address;
 
-    fn from_value(v: &rorm::pool::Value) -> rorm::error::Result<Self::Output> {
-        if let rorm::pool::Value::Str(s) = v {
+    fn from_value(v: &rorm::Value) -> rorm::error::Result<Self::Output> {
+        if let rorm::Value::Str(s) = v {
             let mut arr = s.split("#");
             let city = arr
                 .next()
