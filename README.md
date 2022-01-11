@@ -34,10 +34,10 @@ let connection = rorm::Connection::connect("sqlite://memory")?;
 
 #### 创建 repository
 
-使用 repository 便于管理，也可以不用 repository，直接调用结构体的方法，但这样每次调用都需要传入连接
+使用 repository 便于管理，虽然也可以不用 repository，直接调用结构体的方法，但这样每次调用都需要传入连接
 
 ```rust
-let user_repo = rorm::Repository::<User>::new(connection.clone());
+let user_repo = connection.repository::<User>();
 ```
 
 #### 初始化表
@@ -56,7 +56,7 @@ user_repo.init().await?;
 
 生成的 Model 内部字段名称与原始结构体相同（关联字段除外），但是每个字段都是 ModelColumn 枚举，分为 Set 与 NotSet，用于表示操作时是否设置相应列，不想设置的在最后加上 `..Default::default()` 即可
 
-另外，ModelColumn  实现了所有 ToValue 数据到自身 Set 的转换，所以设置时不需要使用 Set 声明，直接用 into() 即可
+另外，ModelColumn  实现了所有数据到自身 Set 的转换，所以设置时不需要使用 Set 声明，直接用 into() 即可
 
 ```rust
 let bob = UserModel {
@@ -79,10 +79,6 @@ user_repo.update().set_model(new_bob).filter_model(bob_id).one().await?;
 ```
 
 ### 查找
-
-查找时可传入 FindOption 用于排序，分组，分页等
-
-查找分为 find 与 find_many，find 只返回找到的第一个数据，many 返回数组
 
 ```rust
 let bob = user_repo.find().filter_model(bob_id).one().await?;
@@ -119,62 +115,66 @@ user_repo.delete().filter_model(UserModel {
 
    列为唯一
 
-4. table_name = "NAME"
+4. flatten
+
+   类似于 serde(flatten)，将对应结构体的所有列展开到当前表
+
+5. table_name = "NAME"
 
    重命名表
 
-5. length = NUMBER
+6. length = NUMBER
 
    定义字段长度，主要用于 mysql 与 psql 中，例如对于 String 类型若长度为 30，则表中类型定义为 VARCHAR(30)。如果不填，默认 String 长度为 65535
 
-6. type_alias = RUST_TYPE
+7. serde = (serde_json | serde_bson | serde_yaml | ...)
 
-   设置字段的 rust 类型，主要用于私有类型，例如，自定义了 IPv4 的结构体，实现了 ToValue 和 FromValue 之后，设置 type 为 u32，则数据库中会定义成 Integer 类型
+   设置列的序列化方式，暂时只支持 serde_json，没设置 serde 时会使用列的 ToValue / FromValue trait 将 rust 类型与 sql 类型互转，设置 serde 后会使用 serde 对列序列化和反序列化
 
-7. index = [col1, col2, ...]
+8. index = [col1, col2, ...]
 
    定义索引
 
-8. default = (NUMBER | STR)
+9. default = (NUMBER | STR)
 
    设置字段默认值
 
-9. relation = SELF_COLUMN > REFER_COLUMN
+10. relation = SELF_COLUMN > REFER_COLUMN
 
-   声明列的关联性，用于表一对多的情况，SELF_COLUMN 为自身结构体中的字段名称，REFER_COLUMN 为关联的结构体中字段名称，例如，对于如下两张表：
+    声明列的关联性，用于表一对多的情况，SELF_COLUMN 为自身结构体中的字段名称，REFER_COLUMN 为关联的结构体中字段名称，例如，对于如下两张表：
 
-   ```sql
-   CREATE TABLE User {
-       id INTEGER,
-       name VARCHAR,
-   }
-   
-   CREATE TABLE Address {
-       id INTEGER,
-       user_id INTEGER,
-       city VARCHAR,
-       street VARCHAR,
-   }
-   ```
+    ```sql
+    CREATE TABLE User {
+        id INTEGER,
+        name VARCHAR,
+    }
 
-   其中 user 可以拥有多个地址，在 rust 中这样定义：
+    CREATE TABLE Address {
+        id INTEGER,
+        user_id INTEGER,
+        city VARCHAR,
+        street VARCHAR,
+    }
+    ```
 
-   ```rust
-   #[derive(Entity)]
-   struct User {
-       pub id: u32,
-       pub name: String,
-       #[rorm(relation = id > user_id)] // 将自己的 id 与 address 的 user_id 关联
-       pub addresses: Vec<Address>,
-   }
-   
-   #[derive(Entity)]
-   struct Address {
-       pub id: u32,
-       pub user_id: u32,
-       pub city: String,
-       pub street: String,
-   }
-   ```
+    其中 user 可以拥有多个地址，在 rust 中这样定义：
 
-   在数据库中，user 实际没有 addresses 字段，但只要定义 relation 后，在 rust 中查询 user 时，会自动去 address 表中查询匹配 user_id 的数据，并填充到 addresses  中一并返回。
+    ```rust
+    #[derive(Entity)]
+    struct User {
+        pub id: u32,
+        pub name: String,
+        #[rorm(relation = id > user_id)] // 将自己的 id 与 address 的 user_id 关联
+        pub addresses: Vec<Address>,
+    }
+
+    #[derive(Entity)]
+    struct Address {
+        pub id: u32,
+        pub user_id: u32,
+        pub city: String,
+        pub street: String,
+    }
+    ```
+
+    在数据库中，user 实际没有 addresses 字段，但只要定义 relation 后，在 rust 中查询 user 时，会自动去 address 表中查询匹配 user_id 的数据，并填充到 addresses  中一并返回。
