@@ -65,7 +65,7 @@ pub fn parse(input: DeriveInput) -> TableInfo {
     for attr in &input.attrs {
         let attr_name = attr.path.to_token_stream().to_string();
         if attr_name != "rorm" {
-            abort!(attr, "Attr name must be 'rorm'")
+            continue;
         }
 
         let attr_infos = parse_rorm_attr(attr);
@@ -124,7 +124,7 @@ fn parse_columns(st: &DataStruct) -> (Vec<ColumnInfo>, Vec<String>) {
         for attr in &field.attrs {
             let attr_name = attr.path.to_token_stream().to_string();
             if attr_name != "rorm" {
-                abort!(attr, "Attr name must be 'rorm'")
+                continue;
             }
 
             let attr_infos = parse_rorm_attr(attr);

@@ -2,13 +2,14 @@ use rorm::{Entity, Repository};
 use rorm_test::run_async_test;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Entity)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Entity)]
 #[rorm(table_name = "user")]
 #[rorm(index = [name])]
 #[rorm(index = [email, address])]
 struct User {
     #[rorm(primary_key, auto_increment)]
     pub id: u32,
+    #[serde(rename = "user_name")]
     #[rorm(length = 20, default = "NONAME", unique)]
     pub name: String,
     pub email: Option<String>,
