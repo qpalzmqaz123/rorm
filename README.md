@@ -97,6 +97,20 @@ user_repo.delete().filter_model(UserModel {
 }).all().await?;
 ```
 
+## 事务
+
+使用 connection 可创建事务，目前事务为纯上层实现，所以插入时获取不到 id
+
+```rust
+let mut tx = connection.transaction();
+let mut tx_user_repo = tx.repository::<User>();
+
+tx_user_repo.delete().filter_model(1).all().await?;
+tx_user_repo.delete().filter_model(2).all().await?;
+
+tx.commit().await?;
+```
+
 ## 宏
 
 宏里面可以定义表相关信息，格式为 `#[rorm(key [= value], ...)]`
@@ -148,7 +162,7 @@ user_repo.delete().filter_model(UserModel {
         id INTEGER,
         name VARCHAR,
     }
-
+    
     CREATE TABLE Address {
         id INTEGER,
         user_id INTEGER,
@@ -167,7 +181,7 @@ user_repo.delete().filter_model(UserModel {
         #[rorm(relation = id > user_id)] // 将自己的 id 与 address 的 user_id 关联
         pub addresses: Vec<Address>,
     }
-
+    
     #[derive(Entity)]
     struct Address {
         pub id: u32,
