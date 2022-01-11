@@ -13,7 +13,7 @@ struct User {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
-    let connection = Connection::connect("sqlite://memory")?;
+    let connection = Connection::connect("sqlite://memory").await?;
     let user_repo = Repository::<User>::new(connection.clone());
 
     // Init table

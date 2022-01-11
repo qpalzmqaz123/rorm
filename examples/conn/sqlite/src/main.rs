@@ -4,7 +4,7 @@ use rorm_conn::{Connection, Value};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
-    let conn = Connection::connect("sqlite://memory")?;
+    let conn = Connection::connect("sqlite://memory").await?;
 
     // Init table
     {

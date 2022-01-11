@@ -13,7 +13,7 @@ impl Connection {
     /// Sqlite example:
     ///     - `connect("sqlite://memory")`
     ///     - `connect("sqlite:///tmp/db.sqlite")`
-    pub fn connect(url: &str) -> Result<Self> {
+    pub async fn connect(url: &str) -> Result<Self> {
         #[cfg(feature = "sqlite")]
         if url.starts_with("sqlite://") {
             return Self::connect_sqlite(url);
