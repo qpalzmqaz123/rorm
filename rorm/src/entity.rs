@@ -4,7 +4,7 @@ use crate::{
 };
 
 #[async_trait::async_trait]
-pub trait Entity: Sized {
+pub trait Entity: Sized + Send {
     type PrimaryKey;
     type Model: Model<Self::PrimaryKey>;
 

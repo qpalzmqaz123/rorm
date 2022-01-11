@@ -1,8 +1,12 @@
+mod transaction;
+
 use std::future::Future;
 
 use rorm_conn::Connection as InternalConn;
 
-use crate::{error::Result, Row, TableInfo, Value};
+use crate::{error::Result, Entity, Repository, Row, TableInfo, Value};
+
+use transaction::Transaction;
 
 #[derive(Clone)]
 pub struct Connection {
@@ -10,22 +14,26 @@ pub struct Connection {
 }
 
 impl Connection {
+    #[inline]
     pub async fn connect(url: &str) -> Result<Self> {
         Ok(Self {
             internal: InternalConn::connect(url).await?,
         })
     }
 
+    #[inline]
     pub fn dummy() -> Self {
         Self {
             internal: InternalConn::dummy(),
         }
     }
 
+    #[inline]
     pub async fn execute_many(&self, pairs: Vec<(String, Vec<Vec<Value>>)>) -> Result<Vec<u64>> {
         self.internal.execute_many(pairs).await
     }
 
+    #[inline]
     pub async fn query_many_map<T, Fun, Fut>(
         &self,
         sql: &str,
@@ -39,7 +47,18 @@ impl Connection {
         self.internal.query_many_map(sql, params, map).await
     }
 
+    #[inline]
     pub async fn init_table(&self, info: &TableInfo) -> Result<()> {
         self.internal.init_table(info).await
+    }
+
+    #[inline]
+    pub fn repository<E: Entity>(&self) -> Repository<E> {
+        Repository::new(self.clone())
+    }
+
+    #[inline]
+    pub fn transaction(&self) -> Transaction<'_> {
+        Transaction::new(self)
     }
 }

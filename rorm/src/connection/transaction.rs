@@ -5,31 +5,21 @@ use crate::{
     UpdateBuilder, Value,
 };
 
-pub struct RepoTransaction<'conn, E: Entity> {
-    pub conn: &'conn Connection,
+pub struct Transaction<'conn> {
+    conn: &'conn Connection,
     pairs: Vec<(String, Vec<Vec<Value>>)>,
-    _marker: PhantomData<E>,
 }
 
-impl<'conn, E: Entity> RepoTransaction<'conn, E> {
+impl<'conn> Transaction<'conn> {
     pub fn new(conn: &'conn Connection) -> Self {
         Self {
             conn,
             pairs: vec![],
-            _marker: PhantomData,
         }
     }
 
-    pub fn insert(&mut self) -> TransInsertBuilder<'conn, '_, E> {
-        TransInsertBuilder::new(self)
-    }
-
-    pub fn delete(&mut self) -> TransDeleteBuilder<'conn, '_, E> {
-        TransDeleteBuilder::new(self)
-    }
-
-    pub fn update(&mut self) -> TransUpdateBuilder<'conn, '_, E> {
-        TransUpdateBuilder::new(self)
+    pub fn repository<E: Entity>(&mut self) -> RepoTransaction<'_, E> {
+        RepoTransaction::new(&mut self.pairs)
     }
 
     pub async fn commit(self) -> Result<()> {
@@ -43,15 +33,41 @@ impl<'conn, E: Entity> RepoTransaction<'conn, E> {
     }
 }
 
-pub struct TransInsertBuilder<'conn, 'tx, E: Entity> {
-    tx: &'tx mut RepoTransaction<'conn, E>,
+pub struct RepoTransaction<'pair, E: Entity> {
+    pairs: &'pair mut Vec<(String, Vec<Vec<Value>>)>,
+    _marker: PhantomData<E>,
+}
+
+impl<'conn, 'pair, E: Entity> RepoTransaction<'pair, E> {
+    pub fn new(pairs: &'pair mut Vec<(String, Vec<Vec<Value>>)>) -> Self {
+        Self {
+            pairs,
+            _marker: PhantomData,
+        }
+    }
+
+    pub fn insert(&mut self) -> TransInsertBuilder<'_, E> {
+        TransInsertBuilder::new(self.pairs)
+    }
+
+    pub fn delete(&mut self) -> TransDeleteBuilder<'_, E> {
+        TransDeleteBuilder::new(self.pairs)
+    }
+
+    pub fn update(&mut self) -> TransUpdateBuilder<'_, E> {
+        TransUpdateBuilder::new(self.pairs)
+    }
+}
+
+pub struct TransInsertBuilder<'pair, E: Entity> {
+    pairs: &'pair mut Vec<(String, Vec<Vec<Value>>)>,
     builder: InsertBuilder<E>,
 }
 
-impl<'conn, 'tx, E: Entity> TransInsertBuilder<'conn, 'tx, E> {
-    pub fn new(tx: &'tx mut RepoTransaction<'conn, E>) -> Self {
+impl<'conn, 'pair, E: Entity> TransInsertBuilder<'pair, E> {
+    pub fn new(pairs: &'pair mut Vec<(String, Vec<Vec<Value>>)>) -> Self {
         Self {
-            tx,
+            pairs,
             builder: InsertBuilder::new(),
         }
     }
@@ -74,25 +90,25 @@ impl<'conn, 'tx, E: Entity> TransInsertBuilder<'conn, 'tx, E> {
     }
 
     pub async fn one(self) -> Result<()> {
-        self.tx.pairs.extend(self.builder.to_sql_param_pair()?);
+        self.pairs.extend(self.builder.to_sql_param_pair()?);
         Ok(())
     }
 
     pub async fn all(self) -> Result<()> {
-        self.tx.pairs.extend(self.builder.to_sql_param_pair()?);
+        self.pairs.extend(self.builder.to_sql_param_pair()?);
         Ok(())
     }
 }
 
-pub struct TransDeleteBuilder<'conn, 'tx, E: Entity> {
-    tx: &'tx mut RepoTransaction<'conn, E>,
+pub struct TransDeleteBuilder<'pair, E: Entity> {
+    pairs: &'pair mut Vec<(String, Vec<Vec<Value>>)>,
     builder: DeleteBuilder<E>,
 }
 
-impl<'conn, 'tx, E: Entity> TransDeleteBuilder<'conn, 'tx, E> {
-    pub fn new(tx: &'tx mut RepoTransaction<'conn, E>) -> Self {
+impl<'conn, 'pair, E: Entity> TransDeleteBuilder<'pair, E> {
+    pub fn new(pairs: &'pair mut Vec<(String, Vec<Vec<Value>>)>) -> Self {
         Self {
-            tx,
+            pairs,
             builder: DeleteBuilder::new(),
         }
     }
@@ -121,34 +137,32 @@ impl<'conn, 'tx, E: Entity> TransDeleteBuilder<'conn, 'tx, E> {
     }
 
     pub async fn limit(self, limit: u64, offset: u64) -> Result<()> {
-        self.tx
-            .pairs
+        self.pairs
             .extend(self.builder.limit(limit, offset).to_sql_param_pair()?);
         Ok(())
     }
 
     pub async fn one(self) -> Result<()> {
-        self.tx
-            .pairs
+        self.pairs
             .extend(self.builder.limit(1, 0).to_sql_param_pair()?);
         Ok(())
     }
 
     pub async fn all(self) -> Result<()> {
-        self.tx.pairs.extend(self.builder.to_sql_param_pair()?);
+        self.pairs.extend(self.builder.to_sql_param_pair()?);
         Ok(())
     }
 }
 
-pub struct TransUpdateBuilder<'conn, 'tx, E: Entity> {
-    tx: &'tx mut RepoTransaction<'conn, E>,
+pub struct TransUpdateBuilder<'pair, E: Entity> {
+    pairs: &'pair mut Vec<(String, Vec<Vec<Value>>)>,
     builder: UpdateBuilder<E>,
 }
 
-impl<'conn, 'tx, E: Entity> TransUpdateBuilder<'conn, 'tx, E> {
-    pub fn new(tx: &'tx mut RepoTransaction<'conn, E>) -> Self {
+impl<'conn, 'pair, E: Entity> TransUpdateBuilder<'pair, E> {
+    pub fn new(pairs: &'pair mut Vec<(String, Vec<Vec<Value>>)>) -> Self {
         Self {
-            tx,
+            pairs,
             builder: UpdateBuilder::new(),
         }
     }
@@ -185,21 +199,19 @@ impl<'conn, 'tx, E: Entity> TransUpdateBuilder<'conn, 'tx, E> {
     }
 
     pub async fn limit(self, limit: u64, offset: u64) -> Result<()> {
-        self.tx
-            .pairs
+        self.pairs
             .extend(self.builder.limit(limit, offset).to_sql_param_pair()?);
         Ok(())
     }
 
     pub async fn one(self) -> Result<()> {
-        self.tx
-            .pairs
+        self.pairs
             .extend(self.builder.limit(1, 0).to_sql_param_pair()?);
         Ok(())
     }
 
     pub async fn all(self) -> Result<()> {
-        self.tx.pairs.extend(self.builder.to_sql_param_pair()?);
+        self.pairs.extend(self.builder.to_sql_param_pair()?);
         Ok(())
     }
 }

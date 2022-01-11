@@ -1,4 +1,4 @@
-use rorm::{Connection, Entity, Repository};
+use rorm::{Connection, Entity};
 
 #[derive(Debug, PartialEq, Eq, Entity)]
 #[rorm(table_name = "user")]
@@ -14,7 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
     let connection = Connection::connect("sqlite://memory").await?;
-    let user_repo = Repository::<User>::new(connection.clone());
+    let user_repo = connection.repository::<User>();
 
     // Init table
     user_repo.init().await?;

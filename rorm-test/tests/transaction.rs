@@ -20,12 +20,13 @@ fn user_model(name: &str) -> UserModel {
 #[tokio::test]
 async fn test_unique() {
     run_async_test!((repo: Repository<User>) => {
-        let mut tx = repo.transaction();
+        let mut tx = repo.conn.transaction();
+        let mut tx_repo = tx.repository::<User>();
 
-        tx.insert().model(user_model("bob")).one().await.unwrap();
-        tx.insert().model(user_model("alice")).one().await.unwrap();
-        tx.delete().filter_model(user_model("bob")).one().await.unwrap();
-        tx.update().filter_model(user_model("alice")).set_model(user_model("frank")).one().await.unwrap();
+        tx_repo.insert().model(user_model("bob")).one().await.unwrap();
+        tx_repo.insert().model(user_model("alice")).one().await.unwrap();
+        tx_repo.delete().filter_model(user_model("bob")).one().await.unwrap();
+        tx_repo.update().filter_model(user_model("alice")).set_model(user_model("frank")).one().await.unwrap();
 
         tx.commit().await.unwrap();
 

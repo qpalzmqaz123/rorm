@@ -10,7 +10,7 @@ macro_rules! run_async_test {
         func(
             $(
                 {
-                    let repo = <$repo_ty>::new(conn.clone());
+                    let repo: $repo_ty = conn.repository();
                     repo.init().await.unwrap();
 
                     repo
