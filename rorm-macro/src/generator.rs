@@ -312,7 +312,7 @@ fn gen_impl_table_from_row(info: &TableInfo) -> TokenStream {
                         #name: {
                             let s = row.get::<String>(#name_str)?;
                             serde_json::from_str(&s).map_err(|e| rorm::error::from_value!("Convert json '{}' to {}.{} failed", s, std::any::type_name::<Self>(), stringify!(#name)))?
-                        }
+                        },
                     }
                 } else {
                     // Not json
