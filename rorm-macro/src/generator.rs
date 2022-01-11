@@ -144,7 +144,7 @@ fn gen_model(info: &TableInfo) -> TokenStream {
     quote! {
         // Model name
         #[derive(Debug, Default)]
-        struct #model_name {
+        pub struct #model_name {
             #(#field_toks)*
         }
 
