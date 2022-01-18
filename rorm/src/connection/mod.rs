@@ -29,8 +29,27 @@ impl Connection {
     }
 
     #[inline]
+    pub async fn execute_one(&self, sql: &str, params: Vec<Value>) -> Result<u64> {
+        self.internal.execute_one(sql, params).await
+    }
+
+    #[inline]
     pub async fn execute_many(&self, pairs: Vec<(String, Vec<Vec<Value>>)>) -> Result<Vec<u64>> {
         self.internal.execute_many(pairs).await
+    }
+
+    #[inline]
+    pub async fn query_one_map<T, Fun, Fut>(
+        &self,
+        sql: &str,
+        params: Vec<Value>,
+        map: Fun,
+    ) -> Result<T>
+    where
+        Fun: Fn(Row) -> Fut,
+        Fut: Future<Output = Result<T>>,
+    {
+        self.internal.query_one_map(sql, params, map).await
     }
 
     #[inline]
