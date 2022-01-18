@@ -18,7 +18,7 @@ struct User {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct Address {
+pub struct Address {
     pub city: String,
     pub street: String,
 }
