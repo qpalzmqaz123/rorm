@@ -29,8 +29,36 @@ impl Connection {
         }
     }
 
+    pub async fn execute_one(&self, sql: &str, params: Vec<Value>) -> Result<u64> {
+        let list = self
+            .driver
+            .execute_many(vec![(sql.into(), vec![params])])
+            .await?;
+        list.into_iter().next().ok_or(rorm_error::database!(
+            "Execute one `{}` return empty ids",
+            sql
+        ))
+    }
+
     pub async fn execute_many(&self, pairs: Vec<(String, Vec<Vec<Value>>)>) -> Result<Vec<u64>> {
         Ok(self.driver.execute_many(pairs).await?)
+    }
+
+    pub async fn query_one_map<T, Fun, Fut>(
+        &self,
+        sql: &str,
+        params: Vec<Value>,
+        map: Fun,
+    ) -> Result<T>
+    where
+        Fun: Fn(Row) -> Fut,
+        Fut: Future<Output = Result<T>>,
+    {
+        let list = self.query_many_map(sql, params, map).await?;
+        list.into_iter().next().ok_or(rorm_error::database!(
+            "Query one `{}` return empty rows",
+            sql
+        ))
     }
 
     pub async fn query_many_map<T, Fun, Fut>(
