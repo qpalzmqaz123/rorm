@@ -2,7 +2,7 @@
 //!
 //! Build:
 //!   1. ./configure CC=x86_64-linux-musl-gcc --disable-shared --enable-static --disable-readline --disable-tcl
-//!   2. OPTS=-DSQLITE_ENABLE_UPDATE_DELETE_LIMIT=1 make sqlite3.c
+//!   2. OPTS=-DSQLITE_ENABLE_UPDATE_DELETE_LIMIT=1 make [sqlite3.c]
 
 use std::{
     collections::HashMap,
