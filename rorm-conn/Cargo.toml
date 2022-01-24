@@ -12,7 +12,7 @@ async-trait = { version = "0.1", default-features = false }
 log = { version = "0.4", default-features = false }
 tokio-02 = { package = "tokio", version = "0.2", default-features = false, optional = true, features = ["blocking"] }
 tokio-1 = { package = "tokio", version = "1", default-features = false, optional = true }
-rusqlite = { git = "https://github.com/qpalzmqaz123/rusqlite.git", rev = "65771ddc385b8178afdc66689ef93a75631150eb", features = ["bundled"], optional = true }
+rusqlite = { git = "https://github.com/qpalzmqaz123/rusqlite.git", rev = "b715857f62d1004430c0d1a5afd2baa191f8360e", features = ["bundled"], optional = true }
 
 [features]
 default = []
