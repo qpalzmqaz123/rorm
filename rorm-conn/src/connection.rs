@@ -89,11 +89,18 @@ impl Connection {
 
     #[cfg(feature = "sqlite")]
     fn connect_sqlite(url: &str) -> Result<Self> {
+        use std::path::Path;
+
         let path = &url[9..];
         let conn = if path == "memory" {
             rusqlite::Connection::open_in_memory()
                 .map_err(|e| rorm_error::connection!("Sqlite open_in_memory error: {}", e))?
         } else {
+            // Create directory
+            if let Some(dir) = Path::new(path).parent() {
+                std::fs::create_dir_all(dir).ok();
+            }
+
             rusqlite::Connection::open(path)
                 .map_err(|e| rorm_error::connection!("Sqlite open `{}` error: {}", path, e))?
         };
