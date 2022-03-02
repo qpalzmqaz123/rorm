@@ -8,7 +8,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Init table
     {
-        conn.execute_many(vec![("CREATE TABLE ta (a INTEGER)".into(), vec![])])
+        conn.execute_many(vec![("CREATE TABLE ta (a INTEGER)".into(), vec![vec![]])])
             .await?;
     }
 
