@@ -16,6 +16,9 @@ use crate::{ColumnInfo, ColumnType, Driver, IndexInfo, Row, TableInfo, Value};
 #[cfg(feature = "runtime-tokio-0.2")]
 use tokio_02::task::spawn_blocking;
 
+#[cfg(feature = "runtime-tokio-1")]
+use tokio_1::task::spawn_blocking;
+
 #[derive(Clone)]
 pub struct SqliteConnProxy {
     conn: Arc<Mutex<rusqlite::Connection>>,
