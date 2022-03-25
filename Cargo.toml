@@ -7,5 +7,6 @@ members = [
     "rorm-query",
     "rorm-test",
     "examples/sqlite/getting_started",
+    "examples/mysql/getting_started",
     "examples/conn/sqlite",
 ]

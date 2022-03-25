@@ -13,9 +13,12 @@ log = { version = "0.4", default-features = false }
 tokio-02 = { package = "tokio", version = "0.2", default-features = false, optional = true, features = ["blocking"] }
 tokio-1 = { package = "tokio", version = "1", default-features = false, optional = true, features = ["rt-multi-thread"] }
 rusqlite = { git = "https://github.com/qpalzmqaz123/rusqlite.git", rev = "b715857f62d1004430c0d1a5afd2baa191f8360e", features = ["bundled"], optional = true }
+mysql_lib = { package = "mysql", version = "22", default-features = false, features = ["rustls-tls"], optional = true }
+flate2 = { version = "1", default-features = false, features = ["rust_backend"], optional = true }
 
 [features]
 default = []
 sqlite = ["rusqlite"]
+mysql = ["mysql_lib", "flate2"]
 "runtime-tokio-0.2" = ["tokio-02"]
 "runtime-tokio-1" = ["tokio-1"]

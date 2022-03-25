@@ -16,5 +16,6 @@ async-trait = { version = "0.1", default-features = false }
 [features]
 default = []
 sqlite = ["rorm-conn/sqlite"]
+mysql = ["rorm-conn/mysql"]
 "runtime-tokio-0.2" = ["rorm-conn/runtime-tokio-0.2"]
 "runtime-tokio-1" = ["rorm-conn/runtime-tokio-1"]

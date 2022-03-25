@@ -161,6 +161,20 @@ impl FromValue for bool {
     }
 }
 
+impl FromValue for String {
+    type Output = String;
+    fn from_value(v: &Value) -> Result<Self::Output> {
+        match v {
+            Value::Str(v) => Ok(v.clone()),
+            Value::Bytes(v) => Ok(String::from_utf8_lossy(v).into()),
+            _ => Err(rorm_error::from_value!(
+                "Invalid value: {:?}, output type: String",
+                v,
+            )),
+        }
+    }
+}
+
 impl_from_value_integer! {u8}
 impl_from_value_integer! {i8}
 impl_from_value_integer! {u16}
@@ -173,5 +187,4 @@ impl_from_value_integer! {i64}
 impl_from_value_float! {f32}
 impl_from_value_float! {f64}
 
-impl_from_value_base! {String, Str}
 impl_from_value_base! {Vec<u8>, Bytes}

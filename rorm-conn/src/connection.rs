@@ -19,6 +19,11 @@ impl Connection {
             return Self::connect_sqlite(url);
         }
 
+        #[cfg(feature = "mysql")]
+        if url.starts_with("mysql://") {
+            return Self::connect_mysql(url);
+        }
+
         Err(rorm_error::connection!("Unsupport url `{}`", url))
     }
 
@@ -105,6 +110,22 @@ impl Connection {
                 .map_err(|e| rorm_error::connection!("Sqlite open `{}` error: {}", path, e))?
         };
         let driver = crate::drivers::sqlite::SqliteConnProxy::new(conn);
+
+        Ok(Self {
+            driver: Arc::new(driver),
+        })
+    }
+
+    #[cfg(feature = "mysql")]
+    fn connect_mysql(url: &str) -> Result<Self> {
+        use mysql_lib::{Conn, Opts};
+
+        let opts = Opts::from_url(url)
+            .map_err(|e| rorm_error::connection!("Mysql url `{}` error: {}", url, e))?;
+        let conn = Conn::new(opts)
+            .map_err(|e| rorm_error::connection!("Mysql connect `{}` error: {}", url, e))?;
+
+        let driver = crate::drivers::mysql::MysqlConnProxy::new(conn);
 
         Ok(Self {
             driver: Arc::new(driver),
