@@ -75,7 +75,7 @@ macro_rules! impl_from_value_base {
     };
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Null,
     Bool(bool),

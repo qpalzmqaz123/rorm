@@ -24,6 +24,11 @@ impl Connection {
             return Self::connect_mysql(url);
         }
 
+        #[cfg(feature = "fcss")]
+        if url.starts_with("fcss://") {
+            return Self::connect_fcss(url).await;
+        }
+
         Err(rorm_error::connection!("Unsupport url `{}`", url))
     }
 
@@ -126,6 +131,15 @@ impl Connection {
             .map_err(|e| rorm_error::connection!("Mysql connect `{}` error: {}", url, e))?;
 
         let driver = crate::drivers::mysql::MysqlConnProxy::new(conn);
+
+        Ok(Self {
+            driver: Arc::new(driver),
+        })
+    }
+
+    #[cfg(feature = "fcss")]
+    async fn connect_fcss(url: &str) -> Result<Self> {
+        let driver = crate::drivers::fcss::FcssConn::connect(url).await?;
 
         Ok(Self {
             driver: Arc::new(driver),

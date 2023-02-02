@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package api;
+
+message def_range {
+	int32 start = 1;
+	int32 end = 2;
+}
+
+message response_status {
+    int32 return_code = 1; // 0 表示成功，!0 表示失败
+    string return_string = 2;
+}
+
+message tbl_lsrp {
+    string key = 1;
+    string value = 2;
+}
+
+message getall_lsrp {
+    int32 return_code = 1; // 0 表示成功，!0 表示失败
+    string return_string = 2;
+    repeated tbl_lsrp entries = 6;
+}
+
+message response_lsrp {
+    int32 return_code = 3; // 0 表示成功，!0 表示失败
+    string return_string = 4;
+    bool flag = 1; // true 表示 key 存在，false 表示不存在
+    tbl_lsrp entry = 2;
+}
+
+service lsrp {
+    rpc add(tbl_lsrp) returns(response_status);
+    rpc del(tbl_lsrp) returns(response_status);
+    rpc get(tbl_lsrp) returns(response_lsrp);
+    rpc getall(def_range) returns(getall_lsrp);
+}

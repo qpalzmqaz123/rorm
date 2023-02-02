@@ -15,10 +15,19 @@ tokio-1 = { package = "tokio", version = "1", default-features = false, optional
 rusqlite = { git = "https://github.com/qpalzmqaz123/rusqlite.git", rev = "b715857f62d1004430c0d1a5afd2baa191f8360e", features = ["bundled"], optional = true }
 mysql_lib = { package = "mysql", version = "23", default-features = false, features = ["rustls-tls"], optional = true }
 flate2 = { version = "1", default-features = false, features = ["rust_backend"], optional = true }
+tonic = { version = "0.7", default-features = false, features = ["prost", "transport", "codegen"], optional = true }
+prost = { version = "0.10", default-features = false, features = ["prost-derive"], optional = true }
+http = { version = "0.2", default-features = false, optional = true }
+sqlparser = { version = "0.30", default-features = false, optional = true }
+serde_json = { version = "1", default-features = false, features = ["std"], optional = true }
+
+[build-dependencies]
+tonic-build = { version = "0.7", optional = true }
 
 [features]
 default = []
 sqlite = ["rusqlite"]
 mysql = ["mysql_lib", "flate2"]
+fcss = ["tonic", "tonic-build", "prost", "http", "sqlparser", "serde_json"]
 "runtime-tokio-0.2" = ["tokio-02"]
 "runtime-tokio-1" = ["tokio-1"]
