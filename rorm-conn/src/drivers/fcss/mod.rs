@@ -192,7 +192,7 @@ impl FcssConn {
                     index_col,
                     delete_json
                 ))?;
-                let id_str = require_index_from_json_value(id_json)?;
+                let id_str = gen_fcss_key(&table_name, &require_index_from_json_value(id_json)?);
                 self.client.del(id_str).await?;
             }
         }
@@ -379,7 +379,7 @@ impl FcssConn {
         let index_col = self.get_index_col(table_name)?;
 
         // 根据是否有 index，决定查一个还是查所有
-        let mut fcss_entries = if cond
+        let all_fcss_entries = if cond
             .as_ref()
             .map(|ex| first_expr_is_index_eq(&ex, index_col))
             .unwrap_or(false)
@@ -404,10 +404,16 @@ impl FcssConn {
             self.client.list().await?
         };
 
-        // 给结果排序，方便用户使用
-        fcss_entries.sort_by(|a, b| a.0.cmp(&b.0));
+        // 过滤结果，fcss 目前只支持 getall，所以需要把其他表的隔离出来
+        let mut fcss_entries_with_table = all_fcss_entries
+            .into_iter()
+            .filter(|(k, _)| key_is_match_table(k, table_name))
+            .collect::<Vec<_>>();
 
-        let json_maps = fcss_entries
+        // 给结果排序，方便用户使用
+        fcss_entries_with_table.sort_by(|a, b| a.0.cmp(&b.0));
+
+        let json_maps = fcss_entries_with_table
             .into_iter()
             .map(|(_, value_str)| parse_json_object(&value_str))
             .collect::<Result<_>>()?;
@@ -825,10 +831,37 @@ fn json_to_bool(value: &JsonValue) -> bool {
     }
 }
 
+/// FIXME: Fcss 计算 hash 用
+fn times33(data: &str) -> u32 {
+    data.bytes()
+        .fold(5381, |hash, b| hash.wrapping_mul(33) + u32::from(b))
+}
+
 /// 生成 fcss 的 key
-fn gen_fcss_key(_table_name: &str, index: &str) -> String {
-    // FIXME: 演示版本 fcss 限制，只能用 mac key，如 1.1.1，所以这里直接用 index 的值，不同表不能冲突
-    format!("{}", index)
+fn gen_fcss_key(table_name: &str, index: &str) -> String {
+    // FIXME: 演示版本 fcss 限制，只能用 mac key，如 1.1.1
+    // 所以这里 key 的结构为 {table hash 2B} + {index hash 4B}，hash 均使用 times33 算法，计算 32 位数字，table hash 取低 16 位
+    let table_hash = times33(table_name) as u16;
+    let index_hash = times33(index);
+
+    let key = format!(
+        "{:x}.{:x}.{:x}",
+        table_hash,
+        (index_hash >> 16) as u16,
+        index_hash as u16
+    );
+
+    log::trace!("Fcss generate key `{}.{}` -> `{}`", table_name, index, key);
+
+    key
+}
+
+/// 传入 table 名，判断 key 是否属于表
+fn key_is_match_table(key: &str, table_name: &str) -> bool {
+    // FIXME: fcss 限制，目前使用 hash 来匹配
+    let table_hash = times33(table_name) as u16;
+    let key_prefix = format!("{:x}.", table_hash);
+    key.starts_with(&key_prefix)
 }
 
 /// 将字符串转换为 json 对象，在查询 fcss 数据后使用
