@@ -24,10 +24,10 @@ message getall_lsrp {
 }
 
 message response_lsrp {
-    int32 return_code = 3; // 0 表示成功，!0 表示失败
-    string return_string = 4;
-    bool flag = 1; // true 表示 key 存在，false 表示不存在
-    tbl_lsrp entry = 2;
+    int32 return_code = 1; // 0 表示成功，!0 表示失败
+    string return_string = 2;
+    tbl_lsrp entry = 3;
+    bool flag = 4; // true 表示 key 存在，false 表示不存在
 }
 
 service lsrp {
