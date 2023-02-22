@@ -845,7 +845,7 @@ fn gen_fcss_key(table_name: &str, index: &str) -> String {
     let index_hash = times33(index);
 
     let key = format!(
-        "{:x}.{:x}.{:x}",
+        "{:04x}.{:04x}.{:04x}",
         table_hash,
         (index_hash >> 16) as u16,
         index_hash as u16
