@@ -64,7 +64,7 @@ impl FcssGrpcClient {
             add,
             api::TblLsrp {
                 key: key.to_string(),
-                value: value.to_string()
+                value: maybe_compress(value.to_string())?,
             }
         );
 
@@ -97,11 +97,12 @@ impl FcssGrpcClient {
                 value: String::new(),
             }
         );
-
-        Ok(res
+        let value = res
             .entry
             .ok_or(rorm_error::runtime!("Fcss grpc get return is none"))?
-            .value)
+            .value;
+
+        Ok(maybe_decompress(value)?)
     }
 
     pub async fn list(&self) -> Result<Vec<(String, String)>> {
@@ -109,10 +110,66 @@ impl FcssGrpcClient {
 
         let res = grpc_call!(self, getall, api::DefRange { start: 0, end: -1 });
 
-        Ok(res
-            .entries
+        res.entries
             .into_iter()
-            .map(|entry| (entry.key, entry.value))
-            .collect())
+            .map(|entry| Ok((entry.key, maybe_decompress(entry.value)?)))
+            .collect::<Result<_>>()
     }
+}
+
+#[cfg(not(feature = "fcss-compress"))]
+fn maybe_compress(s: String) -> Result<String> {
+    Ok(s)
+}
+
+#[cfg(feature = "fcss-compress")]
+fn maybe_compress(s: String) -> Result<String> {
+    use std::io::Write;
+
+    let mut encoder = snap::write::FrameEncoder::new(vec![]);
+    encoder.write_all(s.as_bytes()).map_err(|e| {
+        rorm_error::runtime!("Fcss grpc compress into_inner error: {}, data: `{}`", e, s)
+    })?;
+    let buf = encoder.into_inner().map_err(|e| {
+        rorm_error::runtime!("Fcss grpc compress into_inner error: {}, data: `{}`", e, s)
+    })?;
+    log::trace!("Fcss grpc compressed {} -> {}", s.len(), buf.len());
+
+    let b64 = base64::encode(buf);
+    log::trace!("Fcss grpc compress to base64: `{}`", b64);
+
+    Ok(b64)
+}
+
+#[cfg(not(feature = "fcss-compress"))]
+fn maybe_decompress(s: String) -> Result<String> {
+    Ok(s)
+}
+
+#[cfg(feature = "fcss-compress")]
+fn maybe_decompress(b64: String) -> Result<String> {
+    use std::io::copy;
+
+    log::trace!("Fcss grpc decompress base64: `{}`", b64);
+    let compressed = base64::decode(&b64).map_err(|e| {
+        rorm_error::runtime!("Fcss grpc decompress base64 error: {}, data: `{}`", e, b64)
+    })?;
+
+    let mut decoder = snap::read::FrameDecoder::new(compressed.as_slice());
+    let mut decompressed = vec![];
+    copy(&mut decoder, &mut decompressed).map_err(|e| {
+        rorm_error::runtime!(
+            "Fcss grpc decompress copy error: {}, base64 data: `{}`",
+            e,
+            b64
+        )
+    })?;
+    log::trace!(
+        "Fcss grpc decompressed {} -> {}",
+        compressed.len(),
+        decompressed.len()
+    );
+
+    String::from_utf8(decompressed)
+        .map_err(|e| rorm_error::runtime!("Fcss grpc convert to string error: {}", e))
 }

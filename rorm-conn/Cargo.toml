@@ -20,6 +20,8 @@ prost = { version = "0.10", default-features = false, features = ["prost-derive"
 http = { version = "0.2", default-features = false, optional = true }
 sqlparser = { version = "0.30", default-features = false, optional = true }
 serde_json = { version = "1", default-features = false, features = ["std"], optional = true }
+snap = { version = "1", default-features = false, optional = true }
+base64 = { version = "0.13", default-features = false, optional = true }
 
 [build-dependencies]
 tonic-build = { version = "0.7", optional = true }
@@ -29,5 +31,6 @@ default = []
 sqlite = ["rusqlite"]
 mysql = ["mysql_lib", "flate2"]
 fcss = ["tonic", "tonic-build", "prost", "http", "sqlparser", "serde_json"]
+fcss-compress = ["fcss", "snap", "base64"]
 "runtime-tokio-0.2" = ["tokio-02"]
 "runtime-tokio-1" = ["tokio-1"]
