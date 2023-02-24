@@ -72,7 +72,7 @@ impl FcssGrpcClient {
     }
 
     pub async fn del<K: ToString + Display>(&self, key: K) -> Result<()> {
-        log::trace!("Fcss grpc del `{}``", key);
+        log::trace!("Fcss grpc del `{}`", key);
 
         grpc_call!(
             self,
@@ -87,7 +87,7 @@ impl FcssGrpcClient {
     }
 
     pub async fn get<K: ToString + Display>(&self, key: K) -> Result<String> {
-        log::trace!("Fcss grpc get `{}``", key);
+        log::trace!("Fcss grpc get `{}`", key);
 
         let res = grpc_call!(
             self,
