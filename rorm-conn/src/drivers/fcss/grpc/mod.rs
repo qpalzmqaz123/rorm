@@ -79,7 +79,8 @@ impl FcssGrpcClient {
             del,
             api::TblLsrp {
                 key: key.to_string(),
-                value: String::new(),
+                // FIXME: 设备问题，get 和 del 需要 value 不为空
+                value: " ".to_owned(),
             }
         );
 
@@ -94,7 +95,8 @@ impl FcssGrpcClient {
             get,
             api::TblLsrp {
                 key: key.to_string(),
-                value: String::new(),
+                // FIXME: 设备问题，get 和 del 需要 value 不为空
+                value: " ".to_owned(),
             }
         );
         let value = res
