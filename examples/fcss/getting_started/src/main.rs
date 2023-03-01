@@ -101,6 +101,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }]
     );
 
+    // Delete bob
+    user_repo.delete().filter_model("b").all().await?;
+    let list = user_repo.find().all().await?;
+    assert_eq!(
+        list,
+        vec![User {
+            id: "a".into(),
+            name: "alice".into(),
+        }]
+    );
+
     // Update alice
     user_repo
         .update()

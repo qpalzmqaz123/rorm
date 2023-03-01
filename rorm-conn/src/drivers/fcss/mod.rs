@@ -397,7 +397,11 @@ impl FcssConn {
             let key = gen_fcss_key(table_name, &index_str);
             let value = self.client.get(&key).await?;
 
-            vec![(key, value)]
+            if let Some(value) = value {
+                vec![(key, value)]
+            } else {
+                vec![]
+            }
         } else {
             // 未传入索引或条件，查所有
             log::trace!("Fcss lookup all from table `{}`", table_name);

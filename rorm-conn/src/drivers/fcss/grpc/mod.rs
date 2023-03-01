@@ -87,7 +87,7 @@ impl FcssGrpcClient {
         Ok(())
     }
 
-    pub async fn get<K: ToString + Display>(&self, key: K) -> Result<String> {
+    pub async fn get<K: ToString + Display>(&self, key: K) -> Result<Option<String>> {
         log::trace!("Fcss grpc get `{}`", key);
 
         let res = grpc_call!(
@@ -104,7 +104,11 @@ impl FcssGrpcClient {
             .ok_or(rorm_error::runtime!("Fcss grpc get return is none"))?
             .value;
 
-        Ok(maybe_decompress(value)?)
+        Ok(if res.flag {
+            Some(maybe_decompress(value)?)
+        } else {
+            None
+        })
     }
 
     pub async fn list(&self) -> Result<Vec<(String, String)>> {
